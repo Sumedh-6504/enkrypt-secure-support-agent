@@ -2,3 +2,5 @@
 .env
 enkrypt_docs.txt
 streamlit.py
+
+.gitignore
