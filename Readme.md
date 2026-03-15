@@ -103,7 +103,7 @@ You will receive a URL like:
 `https://your-username--enkrypt-secure-support-agent-fastapi-app.modal.run`
 
 #### 📸 Modal Deployment
-![Modal Deployment](./modal_deployment.png)
+![Modal Deployment](./imagesmodal_deployment.png)
 
 ---
 
@@ -127,7 +127,7 @@ Try these questions out in the `POST /ask` endpoint in FastAPI docs:
 ```
 
 #### 📸 Sample Answer
-![Sample Answer](./sample_answer.png)
+![Sample Answer](./images/sample_answer.png)
 
 ---
 
