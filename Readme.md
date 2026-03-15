@@ -6,7 +6,7 @@
 [![LLM](https://img.shields.io/badge/LLM-Llama3_via_Groq-purple)](https://console.groq.com/)
 [![Backend](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 
-**🔗 Live Demo:** https://jb23cs163--enkrypt-secure-support-agent-fastapi-app.modal.run
+**🔗 Live Demo:** <a href="https://jb23cs163--enkrypt-secure-support-agent-fastapi-app.modal.run" target="_blank">https://jb23cs163--enkrypt-secure-support-agent-fastapi-app.modal.run</a>
 
 > **A Production-Grade, Secure-by-Design RAG Agent built with Test-Driven Development (TDD).**
 
@@ -103,7 +103,7 @@ You will receive a URL like:
 `https://your-username--enkrypt-secure-support-agent-fastapi-app.modal.run`
 
 #### 📸 Modal Deployment
-![Modal Deployment Placeholder](https://via.placeholder.com/800x400?text=Insert+Modal+Deployment+Screenshot+Here)
+![Modal Deployment](./modal_deployment.png)
 
 ---
 
@@ -113,9 +113,6 @@ Once deployed, you can interact with the API via Swagger UI or CLI.
 
 ### Swagger UI
 **Visit:** `https://YOUR_MODAL_URL.modal.run/docs`
-
-#### 📸 /docs Endpoint
-![/docs Endpoint Placeholder](https://via.placeholder.com/800x400?text=Insert+/docs+Endpoint+Screenshot+Here)
 
 Try these questions out in the `POST /ask` endpoint in FastAPI docs:
 ```json
@@ -130,7 +127,7 @@ Try these questions out in the `POST /ask` endpoint in FastAPI docs:
 ```
 
 #### 📸 Sample Answer
-![Sample Answer Placeholder](https://via.placeholder.com/800x400?text=Insert+Sample+Answer+Screenshot+Here)
+![Sample Answer](./sample_answer.png)
 
 ---
 
