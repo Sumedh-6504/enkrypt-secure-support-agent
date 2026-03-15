@@ -103,7 +103,7 @@ You will receive a URL like:
 `https://your-username--enkrypt-secure-support-agent-fastapi-app.modal.run`
 
 #### 📸 Modal Deployment
-![Modal Deployment](./imagesmodal_deployment.png)
+![Modal Deployment](./images/modal_deployment.png)
 
 ---
 
