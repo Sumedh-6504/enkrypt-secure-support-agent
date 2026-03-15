@@ -132,8 +132,18 @@ Try these questions out in the `POST /ask` endpoint in FastAPI docs:
 ---
 
 ## 📂 Project Structure
-
-- **`app.py`**: The Modal configuration and FastAPI entry point. Defines the container image and cloud infrastructure.
-- **`agent.py`**: The core logic. Initializes the LangChain RAG pipeline and integrates the Enkrypt Guardrails.
-- **`scraper.py`**: An asynchronous script using httpx to scrape documentation and convert it to clean Markdown.
-- **`test_agent.py`**: The TDD suite using pytest and unittest.mock to verify security logic without incurring costs.
+```text
+enkrypt-secure-support-agent/
+├── images/                   # Screenshots for documentation
+├── .env                      # Environment variables (Groq & Enkrypt keys)
+├── .gitignore                # Git ignore rules
+├── agent.py                  # Core Logic: LangChain RAG & Enkrypt Guardrails
+├── app.py                    # Modal config & FastAPI entry point
+├── enkrypt_docs.txt          # Scraped knowledge base for the agent
+├── Readme.md                 # Project documentation
+├── requirements.txt          # Python dependencies
+├── scraper.py                # Async scraper to build the knowledge base
+├── streamlit.py              # Front-end UI application
+├── test_agent.py             # pytest TDD suite for Red Teaming guardrails
+└── test_scraper.py           # pytest suite for the scraper
+```
