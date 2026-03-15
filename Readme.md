@@ -6,7 +6,7 @@
 [![LLM](https://img.shields.io/badge/LLM-Llama3_via_Groq-purple)](https://console.groq.com/)
 [![Backend](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 
-**🔗 Live Demo:** [(https://jb23cs163--enkrypt-secure-support-agent-fastapi-app.modal.run)](#)
+**🔗 Live Demo:** [https://jb23cs163--enkrypt-secure-support-agent-fastapi-app.modal.run](#)
 
 > **A Production-Grade, Secure-by-Design RAG Agent built with Test-Driven Development (TDD).**
 
