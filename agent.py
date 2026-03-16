@@ -20,7 +20,11 @@ class APISupportAgent:
         enkrypt_key = os.getenv("ENKRYPTAI_API_KEY") or os.getenv("ENKRYPT_API_KEY")
         self.guardrails = GuardrailsClient(api_key=enkrypt_key)
 
-        # 3. Load Data (THE FIX: Add encoding="utf-8" to prevent Windows crashes)
+        # --- NEW: Define Policy Name ---
+        # Set to the exact name of the policy you created on the Enkrypt Dashboard
+        self.policy_name = os.getenv("ENKRYPT_POLICY_NAME", "ESSA-Strict-Policy")
+
+        # 3. Load Data
         if os.path.exists(doc_path):
             loader = TextLoader(doc_path, encoding="utf-8")
             docs = loader.load()
@@ -54,8 +58,14 @@ class APISupportAgent:
             self.chain = None
 
     def ask(self, question: str) -> str:
-        # Enkrypt Input Check
-        input_check = self.guardrails.detect(question)
+        # --- NEW: Enkrypt Input Check w/ Policy ---
+        try:
+            # Attempt to use the explicit policy name from the dashboard
+            input_check = self.guardrails.detect(text=question, policy_name=self.policy_name)
+        except TypeError:
+            # Fallback if the SDK structure differs
+            input_check = self.guardrails.detect(question)
+
         if hasattr(input_check, 'is_safe') and not input_check.is_safe:
             return "Security Alert: Request blocked by Enkrypt Guardrails."
 
@@ -65,8 +75,12 @@ class APISupportAgent:
         # Generate Answer
         answer = self.chain.invoke(question)
 
-        # Enkrypt Output Check
-        output_check = self.guardrails.detect(answer)
+        # --- NEW: Enkrypt Output Check w/ Policy ---
+        try:
+            output_check = self.guardrails.detect(text=answer, policy_name=self.policy_name)
+        except TypeError:
+            output_check = self.guardrails.detect(answer)
+
         if hasattr(output_check, 'is_safe') and not output_check.is_safe:
             return "Security Alert: [REDACTED] due to Enkrypt Policy."
 
