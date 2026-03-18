@@ -30,6 +30,9 @@ image = (
 
 app = modal.App("enkrypt-secure-support-agent", image=image)
 
+# Create a volume to persist the Cache database
+volume = modal.Volume.from_name('essa_cache_volume', create_if_missing=True)
+
 web_app = FastAPI(
     title="Enkrypt Secure API Support RAG",
     description="A highly secure, TDD-tested API support agent protected by Enkrypt Guardrails.",
@@ -48,7 +51,8 @@ support_agent: Optional[APISupportAgent] = None
     secrets=[
         modal.Secret.from_name("my_groq_secret"),
         modal.Secret.from_name("my-enkrypt-secret")
-    ]
+    ],
+    volumes = {"/root/cache": volume}
 )
 @modal.asgi_app()
 def fastapi_app():
