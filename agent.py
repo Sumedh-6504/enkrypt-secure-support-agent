@@ -8,6 +8,8 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from enkryptai_sdk import GuardrailsClient
+import sqlite3
+import datetime
 
 
 class APISupportAgent:
@@ -24,6 +26,10 @@ class APISupportAgent:
             persist_directory=cache_dir
         )
         self.cache_threshold = 0.90 # How similar a question needs to be
+
+        # NEw DB Initialisation for telemetry dahsboard
+        self.db_path = os.path.join(cache_dir, "events.db")
+        self._init_db()
 
         # 2. Setup Enkrypt Guardrails
         enkrypt_key = os.getenv("ENKRYPTAI_API_KEY") or os.getenv("ENKRYPT_API_KEY")
@@ -104,3 +110,37 @@ class APISupportAgent:
         )
 
         return answer
+    
+    def _init_db(self):
+        """ Creates the telemetry table if it doesn't exist. """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                question TEXT,
+                answer TEXT,
+                cache_hit BOOLEAN,
+                guardrail_status TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+
+    def _log_event(self, question: str, status: str, policy: str = "None"):
+        """Inserts an event into the SQLite database."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            timestamp = datetime.datetime.now().isoformat()
+            # Mask the question for privacy if it was safe, but log the attack if unsafe.
+            # (Optional: you can log the full question for both)
+            cursor.execute(
+                "INSERT INTO security_logs (timestamp, question, status, policy_violation) VALUES (?, ?, ?, ?)",
+                (timestamp, question, status, policy)
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Failed to log event: {e}")
