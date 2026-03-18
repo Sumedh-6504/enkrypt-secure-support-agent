@@ -3,7 +3,7 @@ from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -58,7 +58,7 @@ class APISupportAgent:
         # 5. Chain
         if self.retriever:
             self.chain = (
-                    {"context": self.retriever, "question": RunnablePassthrough()}
+                    RunnableParallel(context=self.retriever, question=RunnablePassthrough())
                     | self.prompt
                     | self.llm
                     | StrOutputParser()
@@ -104,3 +104,39 @@ class APISupportAgent:
         )
 
         return answer
+
+    async def ask_stream(self, question: str):
+        #1. Check Input Guardrail (Synchronous)
+        input_check = self.guardrails.detect(question)
+        if hasattr(input_check, 'is_safe') and not input_check.is_safe:
+            yield "Security Alert: Request blocked by Enkrypt Guardrails."
+            return
+
+        #2. Setup Streaming LLM
+        stream_llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0, stream=True)
+
+        #3. Build Streaming Chain
+        stream_chain = (
+            RunnableParallel(context=self.retriever, question=RunnablePassthrough())
+            | self.prompt
+            | stream_llm
+            | StrOutputParser()
+        )
+
+        #4. Stream the response
+        full_response = ""
+        for chunk in stream_chain.stream(question):
+            full_response += chunk
+            yield chunk
+
+        #5. Check Output Guardrail (Synchronous)
+        output_check = self.guardrails.detect(full_response)
+        if hasattr(output_check, 'is_safe') and not output_check.is_safe:
+            print("Security Alert: [REDACTED] due to Enkrypt Policy.")
+            return
+
+        #6. Store in Cache (Synchronous)
+        self.cache_store.add_texts(
+            texts=[question],
+            metadatas=[{"answer": full_response}]
+        )
