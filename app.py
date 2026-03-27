@@ -5,6 +5,8 @@ from typing import Optional
 from agent import APISupportAgent
 from fastapi.responses import StreamingResponse
 import sqlite3
+from fastapi import BackgroundTasks, Header
+import os
 
 # 1. Define Image & Add Files
 image = (
@@ -23,11 +25,15 @@ image = (
         "fastapi",
         "enkryptai-sdk",
         "pandas",
-        "tabulate"
+        "tabulate",
+        "httpx",
+        "beautifulsoup4",
+        "markdownify"
     )
     # Add your local files directly to the image
     .add_local_file("agent.py", "/root/agent.py")
     .add_local_file("enkrypt_docs.txt", "/root/enkrypt_docs.txt")
+    .add_local_file("scraper.py", "/root/scraper.py")
 )
 
 app = modal.App("enkrypt-secure-support-agent", image=image)
@@ -147,3 +153,35 @@ async def get_telemetry_logs():
         }
     except Exception as e:
         return {"error": str(e)}
+
+# ------------------------------------------------------------------
+# NEW: GitHub Webhook Endpoint
+# ------------------------------------------------------------------
+async def process_webhook_update(agent_instance):
+    from scraper import run_scraper
+    
+    # Run the scraping logic (this takes 5-10 seconds)
+    success = await run_scraper()
+    
+    # If successful, tell the agent to hot-swap the vector database!
+    if success and agent_instance:
+        agent_instance.reload_knowledge_base()
+
+@web_app.post("/webhooks/update-docs")
+async def handle_github_webhook(
+        background_tasks: BackgroundTasks,
+        authorization: str = Header(None)
+):
+    global support_agent
+    
+    # 1. Very basic security check (Use a proper strong token in production!)
+    expected_token = os.getenv("WEBHOOK_SECRET", "enkrypt123")
+    if not authorization or authorization != f"Bearer {expected_token}":
+        raise HTTPException(status_code=401, detail="Unauthorized Webhook Access")
+    # 2. Add the scraping task to the FastAPI Event Loop
+    background_tasks.add_task(process_webhook_update, support_agent)
+    # 3. Return 202 Accepted immediately so GitHub doesn't time out
+    return {
+        "status": "Accepted",
+        "message": "Documentation scraping task started in the background."
+    }

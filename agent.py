@@ -99,6 +99,43 @@ class APISupportAgent:
         else:
             self.chain = None
 
+    def reload_knowledge_base(self, doc_path="/root/enkrypt_docs.txt", top_k=1):
+        """Atomically hot-swaps the underlying vector database."""
+        print("🔄 RAG Core: Rebuilding Knowledge Base from disk...")
+        if not os.path.exists(doc_path):
+            print("❌ RAG Core: Documentation file not found!")
+            return False
+
+        # Load new text and split
+        from langchain_community.document_loaders import TextLoader
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        
+        loader = TextLoader(doc_path, encoding="utf-8")
+        docs = loader.load()
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        splits = text_splitter.split_documents(docs)
+
+        # Build fresh vectorstore & retriever
+        new_vectorstore = Chroma.from_documents(documents=splits, embedding=self.embeddings)
+        new_retriever = new_vectorstore.as_retriever(search_kwargs={"k": top_k})
+
+        # Atomically swap the live references to prevent dropping active chat requests
+        self.vectorstore = new_vectorstore
+        self.retriever = new_retriever
+        
+        from langchain_core.runnables import RunnableParallel, RunnablePassthrough
+        from langchain_core.output_parsers import StrOutputParser
+        
+        self.chain = (
+                RunnableParallel(context=self.retriever, question=RunnablePassthrough())
+                | self.prompt
+                | self.llm
+                | StrOutputParser()
+        )
+        print("✅ RAG Core: Knowledge Base successfully hot-swapped!")
+        return True
+
+
     def ask(self, question: str) -> str:
         # 1. CHECK SEMANTIC CACHE FIRST
         results = self.cache_store.similarity_search_with_relevance_scores(question, k=1)
