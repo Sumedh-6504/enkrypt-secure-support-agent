@@ -5,10 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7feaf682-920b-40e9-bafb-0c7444fc8e0a" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/local_cache/3f810988-8c6f-4e05-92d9-0abff91f23df/data_level0.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/local_cache/3f810988-8c6f-4e05-92d9-0abff91f23df/header.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/local_cache/3f810988-8c6f-4e05-92d9-0abff91f23df/length.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/local_cache/3f810988-8c6f-4e05-92d9-0abff91f23df/link_lists.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/local_cache/chroma.sqlite3" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/streamlit.py" beforeDir="false" afterPath="$PROJECT_DIR$/streamlit.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test_agent.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/test_scraper.py" beforeDir="false" />
     </list>
@@ -58,7 +65,7 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "feat/streaming-responses",
+    "git-widget-placeholder": "Merging feat/telemetry-dashboard",
     "junie.onboarding.icon.badge.shown": "true",
     "to.speed.mode.migration.done": "true"
   }
