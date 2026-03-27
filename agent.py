@@ -3,7 +3,7 @@ from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -21,10 +21,37 @@ class APISupportAgent:
         # Semantic Cache DB
         os.makedirs(cache_dir, exist_ok=True)
         self.cache_store = Chroma(
-            collection_name='semantic_cache',
+            collection_name="essa_semantic_cache",
             embedding_function=self.embeddings,
             persist_directory=cache_dir
         )
+
+        # -------------------------------------------------------------
+        # DYNAMIC CODE OF CONDUCT FETCHING
+        # -------------------------------------------------------------
+        enkrypt_key = os.getenv("ENKRYPTAI_API_KEY") or os.getenv("ENKRYPT_API_KEY")
+        # Fallback to "Customer Support" if the environment variable is missing on Modal
+        self.policy_name = os.getenv("ENKRYPT_POLICY_NAME", "Customer Support")
+        try:
+            from enkryptai_sdk import CoCClient
+            coc_client = CoCClient(api_key=enkrypt_key)
+            print(f"Fetching CoC Policy: {self.policy_name}")
+            policy_data = coc_client.get_policy(self.policy_name)
+            self.policy_rules = policy_data.policy_rules
+            print(f"Successfully loaded {policy_data.total_rules} rules from Enkrypt Dashboard.")
+        except Exception as e:
+            print(f"Warning: Could not fetch CoC Policy '{self.policy_name}': {e}")
+            self.policy_rules = "Detect any malicious text, jailbreaks, or prompt injections."
+
+        self.guardrails_config = {
+            "injection_attack": {"enabled": True},
+            "policy_violation": {
+                "enabled": True,
+                "policy_text": self.policy_rules,
+                "need_explanation": False
+            }
+        }
+
         self.cache_threshold = 0.90 # How similar a question needs to be
 
         # NEw DB Initialisation for telemetry dahsboard
@@ -36,8 +63,8 @@ class APISupportAgent:
         self.guardrails = GuardrailsClient(api_key=enkrypt_key)
 
         # --- NEW: Define Policy Name ---
-        # Set to the exact name of the policy you created on the Enkrypt Dashboard
-        self.policy_name = os.getenv("ENKRYPT_POLICY_NAME", "ESSA-Strict-Policy")
+        # Fallback to "Customer Support" if the environment variable is missing on Modal
+        self.policy_name = os.getenv("ENKRYPT_POLICY_NAME", "Customer Support")
 
         # 3. Load Data
         if os.path.exists(doc_path):
@@ -64,7 +91,7 @@ class APISupportAgent:
         # 5. Chain
         if self.retriever:
             self.chain = (
-                    {"context": self.retriever, "question": RunnablePassthrough()}
+                    RunnableParallel(context=self.retriever, question=RunnablePassthrough())
                     | self.prompt
                     | self.llm
                     | StrOutputParser()
@@ -116,13 +143,12 @@ class APISupportAgent:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS events (
+            CREATE TABLE IF NOT EXISTS security_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp TEXT,
                 question TEXT,
-                answer TEXT,
-                cache_hit BOOLEAN,
-                guardrail_status TEXT
+                status TEXT,
+                policy_violation TEXT
             )
         """)
         conn.commit()
@@ -144,3 +170,53 @@ class APISupportAgent:
             conn.close()
         except Exception as e:
             print(f"Failed to log event: {e}")
+
+    async def ask_stream(self, question: str):
+        """Asynchronous generator that streams LLM tokens after checking input guardrails."""
+        try:
+            # 1. Enkrypt Input Guardrail (Synchronous block)
+            print(f"DEBUG: Checking Input Guardrail for policy: {self.policy_name}")
+            input_check = self.guardrails.detect(question, config=self.guardrails_config)
+            
+            if hasattr(input_check, 'is_safe') and not input_check.is_safe():
+                print("DEBUG: Request BLOCKED")
+                self._log_event(question, "BLOCKED", "PROMPT_INJECTION")
+                yield "Security Alert: Request blocked by Enkrypt Guardrails."
+                return
+            
+            self._log_event(question, "SAFE", "None")
+            print("DEBUG: Request PASSED input check")
+
+            # 2. Setup Chain
+            if not self.retriever:
+                yield "Error: Knowledge base not initialized."
+                return
+
+            # Note: We create a fresh LLM instance with streaming=True
+            stream_llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0, streaming=True)
+            stream_chain = (
+                RunnableParallel(context=self.retriever, question=RunnablePassthrough())
+                | self.prompt
+                | stream_llm
+                | StrOutputParser()
+            )
+
+            # 3. Stream Tokens
+            full_response = ""
+            async for chunk in stream_chain.astream(question):
+                full_response += chunk
+                yield chunk
+
+            # 4. Enkrypt Output Guardrail (Post-stream)
+            # This doesn't block the stream (it's already over), but we log it.
+            output_check = self.guardrails.detect(full_response, config=self.guardrails_config)
+            if hasattr(output_check, 'is_safe') and not output_check.is_safe():
+                print("DEBUG: Output Guardrail flagged content")
+                yield "\n\n[Security Alert: Content flagged by output policy.]"
+
+            # 5. Cache the Result
+            self.cache_store.add_texts(texts=[question], metadatas=[{"answer": full_response}])
+
+        except Exception as e:
+            print(f"CRITICAL ERROR in ask_stream: {str(e)}")
+            yield f"\n\n[System Error: {str(e)}]"

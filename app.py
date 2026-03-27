@@ -3,6 +3,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from agent import APISupportAgent
+from fastapi.responses import StreamingResponse
+import sqlite3
 
 # 1. Define Image & Add Files
 image = (
@@ -103,3 +105,45 @@ async def ask_agent(request: QueryRequest):
         raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@web_app.post("/stream")
+async def ask_agent_stream(request: QueryRequest):
+    global support_agent
+
+    if support_agent is None:
+        support_agent = APISupportAgent(doc_path="/root/enkrypt_docs.txt", top_k=1)
+
+    if not request.question:
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    # FastAPI's StreamingResponse takes an async generator and streams it to the client
+    return StreamingResponse(
+        support_agent.ask_stream(request.question), 
+        media_type="text/event-stream"
+    )
+
+@web_app.get("/telemetry")
+async def get_telemetry_logs():
+    db_path = "/root/cache/events.db"
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Count total safe vs blocked
+        cursor.execute("SELECT status, COUNT(*) FROM security_logs GROUP BY status")
+        counts = dict(cursor.fetchall())
+        
+        # Get the 10 most recent blocked attacks
+        cursor.execute("SELECT timestamp, question, policy_violation FROM security_logs WHERE status='BLOCKED' ORDER BY id DESC LIMIT 10")
+        blocked_logs = [
+            {"time": row[0], "query": row[1], "violation": row[2]} 
+            for row in cursor.fetchall()
+        ]
+        conn.close()
+        
+        return {
+            "metrics": counts,
+            "recent_attacks": blocked_logs
+        }
+    except Exception as e:
+        return {"error": str(e)}
