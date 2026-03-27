@@ -80,9 +80,17 @@ elif page == "🛡️ Admin Dashboard":
                 col1.metric("Safe Requests ✅", metrics.get("SAFE", 0))
                 col2.metric("Blocked Attacks 🚫", metrics.get("BLOCKED", 0))
                 
+                # 2. Add a clean Bar Chart for better visualization
+                st.subheader("Traffic Analysis")
+                chart_data = pd.DataFrame({
+                    'Status': ['Safe', 'Blocked'],
+                    'Count': [metrics.get("SAFE", 0), metrics.get("BLOCKED", 0)]
+                })
+                st.bar_chart(chart_data.set_index('Status'), color="#4d94ff")
+
                 st.divider()
                 
-                # 2. Display Raw Attack Logs
+                # 3. Display Raw Attack Logs
                 st.subheader("Recent Blocked Events")
                 if attacks:
                     # Convert list of dicts to a clean Pandas DataFrame
