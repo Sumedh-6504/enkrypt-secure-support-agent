@@ -60,7 +60,7 @@ class APISupportAgent:
         self._init_db()
 
         # 2. Setup Enkrypt Guardrails
-        enkrypt_key = os.getenv("ENKRYPTAI_API_KEY") or os.getenv("ENKRYPT_API_KEY")
+        enkrypt_key = os.getenv("ENKRYPTAI_API_KEY") or os.getenv("ENKRYPT_API_KEY") or "dummy-key"
         self.guardrails = GuardrailsClient(api_key=enkrypt_key)
 
         # --- NEW: Define Policy Name ---
