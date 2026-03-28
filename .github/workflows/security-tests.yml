@@ -33,4 +33,4 @@ jobs:
         ENKRYPTAI_API_KEY: ${{ secrets.ENKRYPTAI_API_KEY }}
         ENKRYPT_POLICY_NAME: "Customer Support"
       run: |
-        pytest testing/test_agent.py -v
+        python -m pytest testing/test_agent.py -v
