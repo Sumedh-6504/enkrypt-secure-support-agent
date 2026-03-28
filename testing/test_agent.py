@@ -11,7 +11,7 @@ from agent import APISupportAgent
 load_dotenv()
 
 # We can use dummy keys for tests since we are mocking the network calls
-ENKRYPT_KEY = os.getenv("ENKRYPTAI_API_KEY") or "dummy-key"
+ENKRYPT_KEY = os.getenv("ENKRYPT_API_KEY") or "dummy-key"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 guardrails_client = GuardrailsClient(api_key=ENKRYPT_KEY)
