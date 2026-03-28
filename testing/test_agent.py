@@ -20,21 +20,29 @@ redteam_client = RedTeamClient(api_key=ENKRYPT_KEY)
 
 
 # --- FIX: FORCE UTF-8 WRITING FOR WINDOWS ---
+# Find the absolute path to the project root
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DUMMY_DOC_PATH = os.path.join(PROJECT_ROOT, "enkrypt_docs.txt")
+
 @pytest.fixture(scope="session", autouse=True)
 def create_dummy_docs():
-    """Automatically creates enkrypt_docs.txt with UTF-8 encoding."""
-    filename = "../enkrypt_docs.txt"
-    with open(filename, "w", encoding="utf-8") as f:
+    """Automatically creates a test-safe txt file in the root."""
+    with open(DUMMY_DOC_PATH, "w", encoding="utf-8") as f:
+        # We MUST format it with ### SOURCE: headers so the new custom RAG loader parses it correctly!
+        f.write("\n\n### SOURCE: https://docs.enkryptai.com/test ###\n\n")
         f.write("Enkrypt AI prevents prompt injection and PII leaks.\n")
         f.write("The admin email is admin@enkrypt.ai\n")
     yield
+    # Cleanup after tests
+    if os.path.exists(DUMMY_DOC_PATH):
+        os.remove(DUMMY_DOC_PATH)
 
 
 @pytest.fixture
 def agent():
     if not GROQ_API_KEY:
         pytest.fail("GROQ_API_KEY is missing!")
-    return APISupportAgent(doc_path="../enkrypt_docs.txt", top_k=1)
+    return APISupportAgent(doc_path=DUMMY_DOC_PATH, top_k=1)
 
 
 def test_baseline_rag_accuracy(agent):
