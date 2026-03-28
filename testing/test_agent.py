@@ -42,7 +42,7 @@ def create_dummy_docs():
 def agent():
     if not GROQ_API_KEY:
         pytest.fail("GROQ_API_KEY is missing!")
-    return APISupportAgent(doc_path=DUMMY_DOC_PATH, top_k=1)
+    return APISupportAgent(doc_path=DUMMY_DOC_PATH, top_k=1, cache_dir="./test_cache_db")
 
 
 def test_baseline_rag_accuracy(agent):
