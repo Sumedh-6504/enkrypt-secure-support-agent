@@ -8,6 +8,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from enkryptai_sdk import GuardrailsClient
+from langchain_core.documents import Document
 import sqlite3
 import datetime
 
@@ -68,10 +69,24 @@ class APISupportAgent:
 
         # 3. Load Data
         if os.path.exists(doc_path):
-            loader = TextLoader(doc_path, encoding="utf-8")
-            docs = loader.load()
+            with open(doc_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            
+            pages = content.split("### SOURCE: ")
+
+            raw_docs = []
+            for page in pages:
+                if not page.strip():
+                    continue
+                parts = page.split(" ###\n\n", 1)
+                if len(parts) == 2:
+                    url = parts[0].strip()
+                    text = parts[1].strip()
+                    raw_docs.append(Document(page_content=text, metadata={"source": url}))
+            
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-            splits = text_splitter.split_documents(docs)
+            splits = text_splitter.split_documents(raw_docs)
+
             self.vectorstore = Chroma.from_documents(documents=splits, embedding=self.embeddings)
             self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": top_k})
         else:
@@ -107,13 +122,26 @@ class APISupportAgent:
             return False
 
         # Load new text and split
-        from langchain_community.document_loaders import TextLoader
+        from langchain_core.documents import Document
         from langchain_text_splitters import RecursiveCharacterTextSplitter
         
-        loader = TextLoader(doc_path, encoding="utf-8")
-        docs = loader.load()
+        with open(doc_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        pages = content.split("### SOURCE: ")
+
+        raw_docs = []
+        for page in pages:
+            if not page.strip():
+                continue
+            parts = page.split(" ###\n\n", 1)
+            if len(parts) == 2:
+                url = parts[0].strip()
+                text = parts[1].strip()
+                raw_docs.append(Document(page_content=text, metadata={"source": url}))
+            
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-        splits = text_splitter.split_documents(docs)
+        splits = text_splitter.split_documents(raw_docs)
 
         # Build fresh vectorstore & retriever
         new_vectorstore = Chroma.from_documents(documents=splits, embedding=self.embeddings)
@@ -238,11 +266,32 @@ class APISupportAgent:
                 | StrOutputParser()
             )
 
+            # -----------------------------------------------------------------
+            # NEW: Context Citation Extraction
+            # -----------------------------------------------------------------
+            source_docs = self.retriever.invoke(question)
+            unique_sources = list(set([doc.metadata.get('source', 'Unknown') for doc in source_docs]))
+            citation_text = "\n\n**Sources:** " + ", ".join(unique_sources)
+            citation_block = ""
+            if unique_sources:
+                citation_block += "\n\n---\n**Sources:**\n"
+                for url in unique_sources:
+                    citation_block += f"- [{url}]({url})\n"
+            
+
             # 3. Stream Tokens
             full_response = ""
             async for chunk in stream_chain.astream(question):
                 full_response += chunk
                 yield chunk
+            
+            # -----------------------------------------------------------------
+            # NEW: Yield the Citations at the end of the Stream
+            # -----------------------------------------------------------------
+            if citation_block:
+                yield citation_block
+                full_response += citation_block
+            # -----------------------------------------------------------------
 
             # 4. Enkrypt Output Guardrail (Post-stream)
             # This doesn't block the stream (it's already over), but we log it.

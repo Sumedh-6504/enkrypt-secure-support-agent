@@ -95,7 +95,7 @@ elif page == "🛡️ Admin Dashboard":
                 if attacks:
                     # Convert list of dicts to a clean Pandas DataFrame
                     df = pd.DataFrame(attacks)
-                    st.dataframe(df, use_container_width=True)
+                    st.dataframe(df, width='content')
                 else:
                     st.info("No attacks logged yet! Try sending a jailbreak prompt in the chat.")
             else:
