@@ -16,3 +16,5 @@ python-dateutil==2.8.2
 python-dotenv
 pytest
 tabulate
+langchain-huggingface
+sentence-transformers
