@@ -178,7 +178,7 @@ websockets==16.0
 widgetsnbextension==4.0.15
 xgboost==3.1.2
 xyzservices==2025.11.0
-enkryptai
+enkryptai-sdk==1.0.28
 langchain-community
 langchain-text-splitters
 langchain-core
