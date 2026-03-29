@@ -239,6 +239,19 @@ class APISupportAgent:
     async def ask_stream(self, question: str):
         """Asynchronous generator that streams LLM tokens after checking input guardrails."""
         try:
+            # 0. CHECK SEMANTIC CACHE FIRST (The Fast Path)
+            # Use k=1 to find the single most relevant previous answer
+            results = self.cache_store.similarity_search_with_relevance_scores(question, k=1)
+            if results:
+                doc, score = results[0]
+                if score >= self.cache_threshold:
+                    print(f"✅ CACHE HIT! Similarity Score: {score}")
+                    yield "🚀 **[CACHE HIT]**\n\n"
+                    yield doc.metadata["answer"]
+                    return
+
+            print(f"❌ CACHE MISS (Score below {self.cache_threshold}). Directing to LLM Pipeline...")
+
             # 1. Enkrypt Input Guardrail (Synchronous block)
             print(f"DEBUG: Checking Input Guardrail for policy: {self.policy_name}")
             input_check = self.guardrails.detect(question, config=self.guardrails_config)

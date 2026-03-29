@@ -4,5 +4,6 @@ enkrypt_docs.txt
 # streamlit.py
 
 .gitignore
+.frontend/
 
 Png add to gitignore 
