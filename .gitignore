@@ -6,5 +6,5 @@ enkrypt_docs.txt
 .gitignore
 .frontend/
 
-Png add to gitignore 
-runtime.txt
+.idea
+__pycache__
