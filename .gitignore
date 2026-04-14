@@ -8,3 +8,10 @@ enkrypt_docs.txt
 
 .idea
 __pycache__
+
+runtime.txt
+.pytest_cache
+
+.vscode
+
+local_cache

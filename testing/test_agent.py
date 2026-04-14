@@ -4,6 +4,11 @@ import uuid
 import copy
 from unittest.mock import MagicMock, patch
 from dotenv import load_dotenv
+import sys
+
+# Find the absolute path to the project root and add it to sys.path
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(PROJECT_ROOT)
 
 from enkryptai_sdk import GuardrailsClient, RedTeamClient
 from agent import APISupportAgent
