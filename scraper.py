@@ -2,31 +2,25 @@ import asyncio
 import httpx
 from bs4 import BeautifulSoup
 import markdownify
+import os
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from database import DatabaseManager
+from vector_management import VectorStoreFactory
 
 async def fetch_and_parse(url: str, client: httpx.AsyncClient) -> dict:
     """Fetches a single URL, strips noise, and converts to Markdown."""
     try:
-        # 1. Fetch the page asynchronously
         response = await client.get(url, timeout=10.0)
-        response.raise_for_status()  # Raise exception for 404, 500, etc.
-
-        # 2. Parse HTML
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # 3. DESTROY THE NOISE (Crucial for AI/RAG!)
-        # We remove navigation, footers, scripts, and styles so the LLM only reads the docs.
         for element in soup(["nav", "footer", "script", "style", "header", "aside", "svg"]):
             element.decompose()
 
-        # 4. Target the main content area
-        # Doc sites usually keep the good stuff in <main>, <article>, or an element with role="main"
         main_content = soup.find('main') or soup.find('article') or soup.find(role='main') or soup.find('body')
-
-        # 5. Convert clean HTML to LLM-friendly Markdown
         markdown_text = markdownify.markdownify(str(main_content), heading_style="ATX").strip()
-
-        # Clean up excessive blank lines
         clean_markdown = "\n".join([line for line in markdown_text.splitlines() if line.strip()])
 
         return {
@@ -34,51 +28,76 @@ async def fetch_and_parse(url: str, client: httpx.AsyncClient) -> dict:
             "content": clean_markdown,
             "status": "success"
         }
-
     except Exception as e:
-        return {
-            "url": url,
-            "content": str(e),
-            "status": "error"
-        }
-
+        return {"url": url, "content": str(e), "status": "error"}
 
 async def scrape_docs_concurrently(urls: list[str]) -> list[dict]:
-    """Scrapes a list of URLs concurrently for maximum speed."""
-    # We use a single client session for connection pooling
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        # Create a list of concurrent tasks
         tasks = [fetch_and_parse(url, client) for url in urls]
-
-        # Execute all tasks simultaneously
         results = await asyncio.gather(*tasks)
         return results
 
-
-# --- HOW TO RUN IT FOR REAL ---
-# scraper.py
 async def run_scraper(target_urls: list[str] = None):
-    """Callable async entrypoint to trigger the scraper from an API."""
+    db = DatabaseManager()
+    vs_factory = VectorStoreFactory()
+    vectorstore = vs_factory.get_vector_store()
+    
     if target_urls is None:
         target_urls = [
             "https://docs.enkryptai.com/home/introduction",
             "https://docs.enkryptai.com/get-started/introduction",
             "https://docs.enkryptai.com/api-reference/introduction",
             "https://docs.enkryptai.com/sdk-reference/python/introduction",
-            "https://docs.enkryptai.com/schema-and-postman/introduction",
             "https://docs.enkryptai.com/resources/introduction"
         ]
 
-    print(f"🚀 Background Task: Scraping {len(target_urls)} pages...")
+    print(f"🚀 Incremental Scraper: Checking {len(target_urls)} pages...")
     scraped_data = await scrape_docs_concurrently(target_urls)
 
-    # Save to the root Modal directory where your agent expects it
-    doc_path = "/root/enkrypt_docs.txt"
-    with open(doc_path, "w", encoding="utf-8") as f:
-        for page in scraped_data:
-            if page["status"] == "success":
-                f.write(f"\n\n### SOURCE: {page['url']} ###\n\n")
-                f.write(page["content"])
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    any_updated = False
 
-    print("Background Scraping complete! Data saved to disk.")
-    return True
+    for page in scraped_data:
+        if page["status"] != "success":
+            continue
+        
+        url = page["url"]
+        content = page["content"]
+        new_hash = db.calculate_hash(content)
+        old_hash = db.get_file_hash(url)
+
+        if new_hash == old_hash:
+            print(f"✅ Unchanged: {url}")
+            continue
+        
+        print(f"🔄 Updating: {url} (Hash changed)")
+        any_updated = True
+
+        # 1. DELETE old chunks for this URL to prevent duplication
+        try:
+            # For Chroma and PGVector in LangChain, this is the standard filter delete
+            vectorstore.delete(where={"source": url})
+        except Exception as e:
+            print(f"Warning: Could not delete old chunks for {url}: {e}")
+
+        # 2. CHUNK and EMBED
+        doc = Document(page_content=content, metadata={"source": url})
+        splits = text_splitter.split_documents([doc])
+        vectorstore.add_documents(splits)
+
+        # 3. UPDATE Registry
+        db.update_registry(url, new_hash, len(splits))
+
+    # Also save to combined file for legacy support/testing
+    doc_path = "/root/enkrypt_docs.txt"
+    try:
+        with open(doc_path, "w", encoding="utf-8") as f:
+            for page in scraped_data:
+                if page["status"] == "success":
+                    f.write(f"\n\n### SOURCE: {page['url']} ###\n\n")
+                    f.write(page["content"])
+    except:
+        pass
+
+    print("✅ Scraper cycle complete.")
+    return any_updated
