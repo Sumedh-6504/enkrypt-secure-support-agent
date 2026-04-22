@@ -7,7 +7,7 @@ from langchain_core.documents import Document
 from enkryptai_sdk import GuardrailsClient
 
 from src.ingestion.database import DatabaseManager
-from vector_management import VectorStoreFactory
+from src.orchestration.vector_management import VectorStoreFactory
 
 class APISupportAgent:
     def __init__(self, doc_path="enkrypt_docs.txt", top_k=1, cache_dir='local_cache'):

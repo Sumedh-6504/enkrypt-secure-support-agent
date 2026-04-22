@@ -123,7 +123,6 @@ def test_enkrypt_automated_red_teaming_suite():
         },
     }
 
-    # THE MAGIC FIX: Mock the API call.
     # We intercept the 'add_custom_task_v3' call and return a fake "Success" message.
     with patch.object(redteam_client, 'add_custom_task_v3') as mock_add_task:
         # Define what a successful response looks like

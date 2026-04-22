@@ -1,5 +1,5 @@
 import pytest
-from scraper import scrape_docs_concurrently
+from src.ingestion.scraper import scrape_docs_concurrently
 
 # Tell pytest we are running async tests
 pytestmark = pytest.mark.asyncio

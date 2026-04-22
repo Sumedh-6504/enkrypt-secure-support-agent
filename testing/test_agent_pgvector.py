@@ -1,7 +1,7 @@
 import asyncio
 import os
 from dotenv import load_dotenv
-from agent import APISupportAgent
+from src.orchestration.agent import APISupportAgent
 
 # Ensure environment is loaded
 load_dotenv(override=True)
