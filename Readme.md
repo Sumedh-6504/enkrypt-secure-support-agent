@@ -7,11 +7,22 @@
 [![LLM](https://img.shields.io/badge/LLM-Llama3_via_Groq-purple)](https://console.groq.com/)
 [![Backend](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 
-**🔗 Live Demo:** <a href="https://jb23cs163--enkrypt-secure-support-agent-fastapi-app.modal.run" target="_blank">https://jb23cs163--enkrypt-secure-support-agent-fastapi-app.modal.run</a>
+**🔗 Live Demo:** <a href="[INSERT_NEW_STREAMLIT_URL_HERE]" target="_blank">[INSERT_NEW_STREAMLIT_URL_HERE]</a>
 
 > **A Production-Grade, Secure-by-Design RAG Agent built with a persistent PGVector backend and real-time Guardrails.**
 
-ESSA is an autonomous support agent designed to answer technical questions about Enkrypt AI. Unlike standard RAG implementations, it features a **Dual-Scan Security Layer** powered by Enkrypt AI Guardrails to detect and block Prompt Injections, Jailbreaks, and PII leaks in real-time.
+### 🛑 The Problem
+The market is saturated with "toy" RAG (Retrieval-Augmented Generation) applications that work perfectly in a local Jupyter Notebook but fail entirely in production. These standard implementations suffer from three fatal flaws:
+1.  **Security Vulnerabilities:** Wide open to prompt injections and data exfiltration.
+2.  **Ephemeral State:** Rely on in-memory vector stores (like local Chroma) that lose data on restarts.
+3.  **Inefficient Ingestion:** Re-embed the entire knowledge base for every minor documentation update, burning API credits.
+
+### 💡 The Solution (ESSA)
+ESSA is an autonomous support agent designed to answer technical questions about Enkrypt AI. It solves the production gap by introducing an idempotent, incremental ingestion pipeline, a persistent PGVector backend, and a **Dual-Scan Security Layer** powered by Enkrypt AI Guardrails to detect and block Prompt Injections, Jailbreaks, and PII leaks in real-time.
+
+ESSA uses a serverless microservices architecture optimized for speed and security:
+
+![System Architecture](./images/ESSA-architecture.png)
 
 ---
 
@@ -39,16 +50,6 @@ We transitioned from an ephemeral, in-memory Chroma store to a distributed **Sup
 - **⚡ Serverless & Async**: Deployed on Modal (Serverless GPU infrastructure) with an asynchronous ingestion pipeline that scrapes and processes documentation in seconds.
 - **🚀 Hyper-Fast Inference**: Uses Groq (LPU Inference Engine) running Llama-3.3-70B-versatile for sub-second responses.
 - **🧠 Deterministic Retrieval**: Uses `top_k=1` context retrieval to strictly ground answers in the documentation and minimize hallucinations.
-
----
-
-## 🏗️ Architecture
-
-ESSA uses a serverless microservices architecture optimized for speed and security:
-
-[![](https://mermaid.ink/img/pako:eNqFUtuO2jAQ_ZWRXwssIVkukdqKS5fShYIW2ocGHqbxABGJnTqOWAr8e50YUHe1VSPF9hzPGZ-5HFkoOTGfbRSmW1gMlgLM9y0jFRQL3MFnDHekVlCtfjjNpvMF3GG2O0F3NgoeMNNmBylgIjnGK8suoMJ7JNJcn2CYo-LBJ7FTh1RbS2EUZxdvu2b5TythyeYU5irSBxjjgdSSWYeSV4adYByFkcyzjyfoxTLcBV7dtSfiq9fec1yTcXzqDgPzwyxKKY4EXfxI8H-oeBRyHxPfEPQwo6uKeWiuTW262UGEV8vWph8Tmjqg2nG5Fyf4TqGWatAL-lslExz0Lk9e8ZK0kGl1996BvhSannWp83_KRmJNikR4E1XkVSqwQeAdzMyLqYk2Hk-CoZK_YBxjglUXWvWrDHNVkp5wD12R7UmdYJpr07GX_bKYSRXF2zX7i2RnZDSCAWmTJfGi8MQx1IHdwFyu3qZd-0RZKkVGwUMkMIYv8-nXF3NStrkglDN6yd_Gfg3aQDeYVcyQR5z5WuVUYQmpBAuTHQvCkuktJaakvjly08SiuGfDSVH8kDK50pTMN1vmrzHOjJWnHDUNIjS9SW6oaQ4n1Ze50MxvOmUM5h_ZM_Ndp11zXcdxPafhNdstr8IOBm3UPHNu3XdaHa_p3TfPFfa7fLRea7cbBaHT8Dqu57Zb5z8VASrV?type=png)](https://mermaid.live/edit#pako:eNqFUtuO2jAQ_ZWRXwssIVkukdqKS5fShYIW2ocGHqbxABGJnTqOWAr8e50YUHe1VSPF9hzPGZ-5HFkoOTGfbRSmW1gMlgLM9y0jFRQL3MFnDHekVlCtfjjNpvMF3GG2O0F3NgoeMNNmBylgIjnGK8suoMJ7JNJcn2CYo-LBJ7FTh1RbS2EUZxdvu2b5TythyeYU5irSBxjjgdSSWYeSV4adYByFkcyzjyfoxTLcBV7dtSfiq9fec1yTcXzqDgPzwyxKKY4EXfxI8H-oeBRyHxPfEPQwo6uKeWiuTW262UGEV8vWph8Tmjqg2nG5Fyf4TqGWatAL-lslExz0Lk9e8ZK0kGl1996BvhSannWp83_KRmJNikR4E1XkVSqwQeAdzMyLqYk2Hk-CoZK_YBxjglUXWvWrDHNVkp5wD12R7UmdYJpr07GX_bKYSRXF2zX7i2RnZDSCAWmTJfGi8MQx1IHdwFyu3qZd-0RZKkVGwUMkMIYv8-nXF3NStrkglDN6yd_Gfg3aQDeYVcyQR5z5WuVUYQmpBAuTHQvCkuktJaakvjly08SiuGfDSVH8kDK50pTMN1vmrzHOjJWnHDUNIjS9SW6oaQ4n1Ze50MxvOmUM5h_ZM_Ndp11zXcdxPafhNdstr8IOBm3UPHNu3XdaHa_p3TfPFfa7fLRea7cbBaHT8Dqu57Zb5z8VASrV)
-
----
 
 ## ✨ Key Features
 
@@ -118,6 +119,10 @@ pytest testing/test_agent.py -v
 ```
 > **Expected Output:** `4 passed` (Security filters active)
 
+### 🤖 Automated CI/CD (`security-tests.yml`)
+To guarantee that no security regressions are pushed to production, this project utilizes GitHub Actions. The `.github/workflows/security-tests.yml` workflow automatically runs the Red Team test suite on every pull request. 
+**Why this is critical:** It ensures that modifications to the RAG logic or prompt templates do not accidentally bypass the Enkrypt Guardrails, maintaining a zero-trust environment at the repository level.
+
 ---
 
 ## 🚀 Deployment (Modal)
@@ -138,7 +143,7 @@ modal deploy app.py
 Interact with the agent via Swagger UI or the Chat Dashboard.
 
 ### Swagger UI
-**Visit:** `https://YOUR_MODAL_URL.modal.run/docs`
+**Visit:** `https://jb23cs163--enkrypt-secure-support-agent-fastapi-app.modal.run/docs`
 
 Try these questions out in the `POST /ask` endpoint in FastAPI docs:
 ```json
@@ -158,19 +163,19 @@ Try these questions out in the `POST /ask` endpoint in FastAPI docs:
 ---
 
 ## 📂 Project Structure
+Following enterprise software engineering patterns, the codebase is structured by domain:
 ```text
 enkrypt-secure-support-agent/
-├── images/                   # Screenshots & UI assets
-├── local_cache/              # Local SQLite & Chroma storage (dev mode)
-├── testing/                  # 🛡️ Test Suite (test_agent.py, test_scraper.py)
-├── .env                      # Environment variables (Secrets)
-├── .gitignore                # Git exclusion rules
-├── agent.py                  # 🤖 Secure RAG Engine & Security Guardrails
-├── app.py                    # 🚀 Modal Deployment & FastAPI App
-├── database.py               # 📊 Persistence Layer (Postgres/SQLite)
-├── scraper.py                # 🔄 Incremental Scraper with SHA-256 Hashing
-├── streamlit.py              # 🎨 Local Interactive Dashboard
+├── .github/workflows/        # 🤖 CI/CD Automation (security-tests.yml)
+├── docs/                     # 📚 Architecture diagrams & assets
+├── local_cache/              # 🗄️ Local SQLite & Chroma storage (dev mode)
+├── src/                      # 💻 Core Application Code
+│   ├── api/                  # FastAPI endpoints (app.py)
+│   ├── ingestion/            # Data pipeline (scraper.py, database.py)
+│   ├── orchestration/        # RAG Logic (agent.py, vector_management.py)
+│   └── ui/                   # Frontend components (streamlit.py)
+├── testing/                  # 🛡️ Security Test Suite
+├── .env.example              # Environment variables template
 ├── requirements.txt          # 📦 Python Dependencies
-├── vector_management.py      # 🧠 Store Factory (PGVector / Chroma)
 └── Readme.md                 # Project Documentation
 ```
