@@ -168,14 +168,13 @@ Following enterprise software engineering patterns, the codebase is structured b
 enkrypt-secure-support-agent/
 ├── .github/workflows/        # 🤖 CI/CD Automation (security-tests.yml)
 ├── docs/                     # 📚 Architecture diagrams & assets
-├── local_cache/              # 🗄️ Local SQLite & Chroma storage (dev mode)
 ├── src/                      # 💻 Core Application Code
 │   ├── api/                  # FastAPI endpoints (app.py)
 │   ├── ingestion/            # Data pipeline (scraper.py, database.py)
 │   ├── orchestration/        # RAG Logic (agent.py, vector_management.py)
-│   └── ui/                   # Frontend components (streamlit.py)
 ├── testing/                  # 🛡️ Security Test Suite
 ├── .env.example              # Environment variables template
 ├── requirements.txt          # 📦 Python Dependencies
-└── Readme.md                 # Project Documentation
+├── Readme.md                 # Project Documentation
+└── streamlit.py              # Frontend  chatbot interface
 ```
