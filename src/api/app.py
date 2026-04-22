@@ -17,6 +17,7 @@ image = (
         "langchain-groq",
         "langchain-huggingface",
         "langchain-postgres",
+        "langchain-chroma",
         "sentence-transformers",
         "chromadb",
         "fastapi",
