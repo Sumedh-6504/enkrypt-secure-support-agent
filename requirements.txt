@@ -8,6 +8,8 @@ langchain-text-splitters
 langchain-groq
 langchain-chroma
 chromadb
+langchain-postgres
+psycopg2-binary
 enkryptai-sdk==1.0.28
 beautifulsoup4
 clerk-backend-api==1.0.0

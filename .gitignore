@@ -8,6 +8,3 @@ enkrypt_docs.txt
 
 .idea
 __pycache__
-
-local_cache/
-.vscode

@@ -2,7 +2,7 @@ import modal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from agent import APISupportAgent
+from src.orchestration.agent import APISupportAgent
 from fastapi.responses import StreamingResponse
 import sqlite3
 from fastapi import BackgroundTasks, Header
