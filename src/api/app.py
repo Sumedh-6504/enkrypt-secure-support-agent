@@ -70,7 +70,7 @@ def get_agent():
     secrets=[
         modal.Secret.from_name("my_groq_secret"),
         modal.Secret.from_name("my-enkrypt-secret"),
-        modal.Secret.from_name("postgres-secret")
+        modal.Secret.from_name("pgvector-db")
     ],
     volumes={"/root/cache": volume}
 )
