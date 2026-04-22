@@ -6,7 +6,7 @@ import os
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from database import DatabaseManager
+from src.ingestion.database import DatabaseManager
 from src.orchestration.vector_management import VectorStoreFactory
 
 async def fetch_and_parse(url: str, client: httpx.AsyncClient) -> dict:

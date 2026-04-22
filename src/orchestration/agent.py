@@ -3,7 +3,6 @@ import asyncio
 from typing import AsyncGenerator
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_core.output_parsers import StrOutputParser
 from enkryptai_sdk import GuardrailsClient
 
@@ -31,8 +30,6 @@ class APISupportAgent:
         )
 
         # 4. Connect to Knowledge Base (Decoupled from local text files)
-        # We no longer look for "enkrypt_docs.txt". We trust the Database/PGVector 
-        # has been populated by scraper.py.
         self.vectorstore = self.vs_factory.get_vector_store(
             collection_name="essa_knowledge_base",
             persist_directory=cache_dir
@@ -52,7 +49,9 @@ class APISupportAgent:
         Answer:
         """
         self.prompt = ChatPromptTemplate.from_template(template)
-        self._rebuild_chain()
+        
+        # Simpler chain expecting a dict with 'context' and 'question'
+        self.chain = self.prompt | self.llm | StrOutputParser()
 
     def _init_guardrails(self):
         enkrypt_key = os.getenv("ENKRYPTAI_API_KEY") or os.getenv("ENKRYPT_API_KEY") or "dummy-key"
@@ -77,19 +76,10 @@ class APISupportAgent:
             }
         }
 
-    def _rebuild_chain(self):
-        if self.retriever:
-            self.chain = (
-                RunnableParallel(context=self.retriever, question=RunnablePassthrough())
-                | self.prompt
-                | self.llm
-                | StrOutputParser()
-            )
-
     async def ask(self, question: str):
         """Standard asynchronous ask method."""
         try:
-            # 1. Input Guardrail (Offloaded to thread to prevent blocking async loop)
+            # 1. Input Guardrail
             input_check = await asyncio.to_thread(self.guardrails.detect, question, config=self.guardrails_config)
             if hasattr(input_check, 'is_safe') and not input_check.is_safe():
                 self.db.log_security_event(question, "BLOCKED", "PROMPT_INJECTION")
@@ -97,18 +87,19 @@ class APISupportAgent:
             
             self.db.log_security_event(question, "SAFE", "None")
 
-            # 2. Context Retrieval & LLM Call
-            source_docs = await self.retriever.ainvoke(question)
+            # 2. Context Retrieval (Sync wrapped in thread to avoid asyncpg engine requirement for PGVector)
+            source_docs = await asyncio.to_thread(self.retriever.invoke, question)
             context = "\n\n".join([doc.page_content for doc in source_docs])
             unique_sources = list(set([doc.metadata.get('source', 'Unknown') for doc in source_docs]))
 
-            response = await self.chain.ainvoke(question)
+            # 3. LLM Call
+            response = await self.chain.ainvoke({"context": context, "question": question})
 
-            # 3. Add Citations
+            # 4. Add Citations
             if unique_sources:
                 response += "\n\n---\n**Sources:**\n" + "\n".join([f"- [{s}]({s})" for s in unique_sources])
 
-            # 4. Output Guardrail (Offloaded to thread)
+            # 5. Output Guardrail
             output_check = await asyncio.to_thread(self.guardrails.detect, response, config=self.guardrails_config)
             if hasattr(output_check, 'is_safe') and not output_check.is_safe():
                 return response + "\n\n[Security Alert: Content flagged by output policy.]"
@@ -119,14 +110,14 @@ class APISupportAgent:
 
     async def ask_stream(self, question: str) -> AsyncGenerator[str, None]:
         try:
-            # 1. CACHE HIT CHECK (Offloaded to thread)
+            # 1. CACHE HIT CHECK
             results = await asyncio.to_thread(self.cache_store.similarity_search_with_relevance_scores, question, k=1)
             if results and results[0][1] >= self.cache_threshold:
                 yield "🚀 **[CACHE HIT]**\n\n"
                 yield results[0][0].metadata["answer"]
                 return
 
-            # 2. INPUT GUARDRAIL (Offloaded to thread)
+            # 2. INPUT GUARDRAIL
             input_check = await asyncio.to_thread(self.guardrails.detect, question, config=self.guardrails_config)
             if hasattr(input_check, 'is_safe') and not input_check.is_safe():
                 self.db.log_security_event(question, "BLOCKED", "PROMPT_INJECTION")
@@ -135,18 +126,16 @@ class APISupportAgent:
             
             self.db.log_security_event(question, "SAFE", "None")
 
-            # 3. RETRIEVE CONTEXT
-            source_docs = await self.retriever.ainvoke(question)
+            # 3. RETRIEVE CONTEXT (Sync wrapped in thread to avoid asyncpg engine requirement)
+            source_docs = await asyncio.to_thread(self.retriever.invoke, question)
             context = "\n\n".join([doc.page_content for doc in source_docs])
             unique_sources = list(set([doc.metadata.get('source', 'Unknown') for doc in source_docs]))
 
             # 4. STREAM LLM RESPONSE
-            gen_chain = self.prompt | self.llm | StrOutputParser()
-            
             full_response = ""
             gen_input = {"context": context, "question": question}
             
-            async for chunk in gen_chain.astream(gen_input):
+            async for chunk in self.chain.astream(gen_input):
                 full_response += chunk
                 yield chunk
             
@@ -156,7 +145,7 @@ class APISupportAgent:
                 yield citation_block
                 full_response += citation_block
 
-            # 6. OUTPUT GUARDRAIL & CACHE (Offloaded to thread)
+            # 6. OUTPUT GUARDRAIL & CACHE
             output_check = await asyncio.to_thread(self.guardrails.detect, full_response, config=self.guardrails_config)
             if hasattr(output_check, 'is_safe') and not output_check.is_safe():
                 yield "\n\n[Security Alert: Content flagged by output policy.]"

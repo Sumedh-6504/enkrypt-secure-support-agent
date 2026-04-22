@@ -1,25 +1,22 @@
 import modal
-from fastapi import FastAPI, HTTPException
+import os
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Header
 from pydantic import BaseModel
 from typing import Optional
-from src.orchestration.agent import APISupportAgent
 from fastapi.responses import StreamingResponse
-import sqlite3
-from fastapi import BackgroundTasks, Header
-import os
+from fastapi.middleware.cors import CORSMiddleware
 
-# 1. Define Image & Add Files
+# 1. Define Image & Add Source
 image = (
     modal.Image.debian_slim()
-    # Fix for the sklearn warning
     .env({"SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL": "True"})
-    # Install dependencies
     .pip_install(
         "scikit-learn",
         "langchain",
         "langchain-community",
         "langchain-groq",
         "langchain-huggingface",
+        "langchain-postgres",
         "sentence-transformers",
         "chromadb",
         "fastapi",
@@ -28,17 +25,16 @@ image = (
         "tabulate",
         "httpx",
         "beautifulsoup4",
-        "markdownify"
+        "markdownify",
+        "psycopg2-binary"
     )
-    # Add your local files directly to the image
-    .add_local_file("agent.py", "/root/agent.py")
-    .add_local_file("enkrypt_docs.txt", "/root/enkrypt_docs.txt")
-    .add_local_file("scraper.py", "/root/scraper.py")
+    # Add the entire src directory so all modules are available in Modal
+    .add_local_python_source("src")
 )
 
 app = modal.App("enkrypt-secure-support-agent", image=image)
 
-# Create a volume to persist the Cache database
+# Create a volume for local caching/telemetry if not in production mode
 volume = modal.Volume.from_name('essa_cache_volume', create_if_missing=True)
 
 web_app = FastAPI(
@@ -47,7 +43,6 @@ web_app = FastAPI(
     version="1.0.0"
 )
 
-from fastapi.middleware.cors import CORSMiddleware
 web_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -56,54 +51,52 @@ web_app.add_middleware(
     allow_headers=["*"],
 )
 
-
 class QueryRequest(BaseModel):
     question: str
 
+# Global agent instance for warm-starting
+support_agent: Optional[any] = None
 
-support_agent: Optional[APISupportAgent] = None
-
+def get_agent():
+    """Lazy initializer for the agent."""
+    global support_agent
+    if support_agent is None:
+        from src.orchestration.agent import APISupportAgent
+        # Initialized without doc_path; relies on VECTOR_MODE and DB/Supabase
+        support_agent = APISupportAgent(top_k=1, cache_dir="/root/cache")
+    return support_agent
 
 @app.function(
     secrets=[
         modal.Secret.from_name("my_groq_secret"),
-        modal.Secret.from_name("my-enkrypt-secret")
+        modal.Secret.from_name("my-enkrypt-secret"),
+        modal.Secret.from_name("postgres-secret")
     ],
-    volumes = {"/root/cache": volume}
+    volumes={"/root/cache": volume}
 )
 @modal.asgi_app()
 def fastapi_app():
-    global support_agent
-    # Initialize the agent using the files we baked into the image
-    support_agent = APISupportAgent(doc_path="/root/enkrypt_docs.txt", top_k=1)
+    # Warm up the agent on boot
+    get_agent()
     return web_app
-
 
 @web_app.get("/")
 async def root():
     return {
         "message": "Enkrypt Secure Agent is Running 🛡️",
-        "endpoints": ["/docs", "/health", "/ask"]
+        "status": "online",
+        "version": "1.0.0"
     }
-
-@web_app.get("/health")
-async def health_check():
-    return {"status": "healthy", "guardrails": "active", "retrieval_strictness": "top_k=1"}
-
 
 @web_app.post("/ask")
 async def ask_agent(request: QueryRequest):
-    global support_agent
-
-    # Cold start check
-    if support_agent is None:
-        support_agent = APISupportAgent(doc_path="/root/enkrypt_docs.txt", top_k=1)
-
+    agent = get_agent()
     if not request.question:
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
     try:
-        answer = support_agent.ask(request.question)
+        # 🌟 FIXED: Awaiting the now-async ask method
+        answer = await agent.ask(request.question)
 
         # Check for guardrail blocks in the response
         if "Security Alert" in answer or "[REDACTED]" in answer:
@@ -115,7 +108,6 @@ async def ask_agent(request: QueryRequest):
             "security_status": "Passed Enkrypt Guardrails",
             "context_used": "top_k=1"
         }
-
     except HTTPException as he:
         raise he
     except Exception as e:
@@ -123,74 +115,60 @@ async def ask_agent(request: QueryRequest):
 
 @web_app.post("/stream")
 async def ask_agent_stream(request: QueryRequest):
-    global support_agent
-
-    if support_agent is None:
-        support_agent = APISupportAgent(doc_path="/root/enkrypt_docs.txt", top_k=1)
-
+    agent = get_agent()
     if not request.question:
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-    # FastAPI's StreamingResponse takes an async generator and streams it to the client
     return StreamingResponse(
-        support_agent.ask_stream(request.question), 
+        agent.ask_stream(request.question), 
         media_type="text/event-stream"
     )
 
 @web_app.get("/telemetry")
 async def get_telemetry_logs():
-    db_path = "/root/cache/events.db"
+    """Admin endpoint to fetch logs from the DB (Postgres or local SQLite)."""
+    agent = get_agent()
     try:
-        conn = sqlite3.connect(db_path)
+        # Using the agent's DB manager to fetch logs generically
+        conn = agent.db._get_connection()
         cursor = conn.cursor()
         
-        # Count total safe vs blocked
-        cursor.execute("SELECT status, COUNT(*) FROM security_logs GROUP BY status")
-        counts = dict(cursor.fetchall())
+        # 1. Metrics
+        if agent.db.db_type == "postgres":
+            cursor.execute("SELECT status, COUNT(*) FROM security_logs GROUP BY status")
+        else:
+            cursor.execute("SELECT status, COUNT(*) FROM security_logs GROUP BY status")
+        metrics = dict(cursor.fetchall())
         
-        # Get the 10 most recent blocked attacks
-        cursor.execute("SELECT timestamp, question, policy_violation FROM security_logs WHERE status='BLOCKED' ORDER BY id DESC LIMIT 10")
-        blocked_logs = [
-            {"time": row[0], "query": row[1], "violation": row[2]} 
+        # 2. Recent Attacks
+        if agent.db.db_type == "postgres":
+            cursor.execute("SELECT timestamp, question, policy_violation FROM security_logs WHERE status='BLOCKED' ORDER BY id DESC LIMIT 10")
+        else:
+            cursor.execute("SELECT timestamp, question, policy_violation FROM security_logs WHERE status='BLOCKED' ORDER BY id DESC LIMIT 10")
+        
+        attacks = [
+            {"time": str(row[0]), "query": row[1], "violation": row[2]} 
             for row in cursor.fetchall()
         ]
         conn.close()
         
-        return {
-            "metrics": counts,
-            "recent_attacks": blocked_logs
-        }
+        return {"metrics": metrics, "recent_attacks": attacks}
     except Exception as e:
         return {"error": str(e)}
 
-# ------------------------------------------------------------------
-# NEW: GitHub Webhook Endpoint
-# ------------------------------------------------------------------
-async def process_webhook_update(agent_instance):
-    from scraper import run_scraper
-    
-    # Run the scraping logic (this takes 5-10 seconds)
-    success = await run_scraper()
-    
-    # If successful, tell the agent to hot-swap the vector database!
-    if success and agent_instance:
-        agent_instance.reload_knowledge_base()
-
 @web_app.post("/webhooks/update-docs")
 async def handle_github_webhook(
-        background_tasks: BackgroundTasks,
-        authorization: str = Header(None)
+    background_tasks: BackgroundTasks,
+    authorization: str = Header(None)
 ):
-    global support_agent
-    
-    # 1. Very basic security check (Use a proper strong token in production!)
+    """Triggers the scraper to refresh knowledge base."""
     expected_token = os.getenv("WEBHOOK_SECRET", "enkrypt123")
     if not authorization or authorization != f"Bearer {expected_token}":
-        raise HTTPException(status_code=401, detail="Unauthorized Webhook Access")
-    # 2. Add the scraping task to the FastAPI Event Loop
-    background_tasks.add_task(process_webhook_update, support_agent)
-    # 3. Return 202 Accepted immediately so GitHub doesn't time out
-    return {
-        "status": "Accepted",
-        "message": "Documentation scraping task started in the background."
-    }
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    async def run_update():
+        from src.ingestion.scraper import run_scraper
+        await run_scraper()
+        
+    background_tasks.add_task(run_update)
+    return {"status": "Accepted", "message": "Knowledge base update triggered."}
