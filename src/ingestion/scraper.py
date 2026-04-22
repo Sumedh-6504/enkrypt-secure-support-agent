@@ -7,7 +7,7 @@ from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from database import DatabaseManager
-from vector_management import VectorStoreFactory
+from src.orchestration.vector_management import VectorStoreFactory
 
 async def fetch_and_parse(url: str, client: httpx.AsyncClient) -> dict:
     """Fetches a single URL, strips noise, and converts to Markdown."""

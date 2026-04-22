@@ -6,7 +6,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
 from enkryptai_sdk import GuardrailsClient
 
-from database import DatabaseManager
+from src.ingestion.database import DatabaseManager
 from vector_management import VectorStoreFactory
 
 class APISupportAgent:
