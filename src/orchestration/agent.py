@@ -44,7 +44,11 @@ class APISupportAgent:
         # 6. Prompt & Chain Template
         template = """
         You are a highly technical API Support Agent for Enkrypt AI.
+        Use ONLY the provided Context to answer the Question.
+        Do NOT generate fake URLs or include citations in your answer. The system will automatically append the correct source links.
+        
         Context: {context}
+        
         Question: {question}
         Answer:
         """
@@ -76,9 +80,12 @@ class APISupportAgent:
             }
         }
 
-    async def ask(self, question: str):
+    async def ask(self, question: str, session_id: str = "default_session"):
         """Standard asynchronous ask method."""
         try:
+            # 0. Load Conversation History
+            history = await asyncio.to_thread(self.db.get_chat_session, session_id)
+
             # 1. Input Guardrail
             input_check = await asyncio.to_thread(self.guardrails.detect, question, config=self.guardrails_config)
             if hasattr(input_check, 'is_safe') and not input_check.is_safe():
@@ -90,6 +97,10 @@ class APISupportAgent:
             # 2. Context Retrieval (Sync wrapped in thread to avoid asyncpg engine requirement for PGVector)
             source_docs = await asyncio.to_thread(self.retriever.invoke, question)
             context = "\n\n".join([doc.page_content for doc in source_docs])
+            
+            # Inject History into Context
+            if history:
+                context = f"Previous Conversation History:\n{history}\n\nDocument Context:\n{context}"
             unique_sources = list(set([doc.metadata.get('source', 'Unknown') for doc in source_docs]))
 
             # 3. LLM Call
@@ -104,12 +115,21 @@ class APISupportAgent:
             if hasattr(output_check, 'is_safe') and not output_check.is_safe():
                 return response + "\n\n[Security Alert: Content flagged by output policy.]"
 
+            # 6. Save Updated History
+            new_history = history + f"\nUser: {question}\nAgent: {response}\n"
+            if len(new_history) > 4000:
+                new_history = new_history[-4000:]
+            await asyncio.to_thread(self.db.update_chat_session, session_id, new_history)
+
             return response
         except Exception as e:
             return f"[System Error: {str(e)}]"
 
-    async def ask_stream(self, question: str) -> AsyncGenerator[str, None]:
+    async def ask_stream(self, question: str, session_id: str = "default_session") -> AsyncGenerator[str, None]:
         try:
+            # 0. Load Conversation History
+            history = await asyncio.to_thread(self.db.get_chat_session, session_id)
+
             # 1. CACHE HIT CHECK
             results = await asyncio.to_thread(self.cache_store.similarity_search_with_relevance_scores, question, k=1)
             if results and results[0][1] >= self.cache_threshold:
@@ -129,6 +149,11 @@ class APISupportAgent:
             # 3. RETRIEVE CONTEXT (Sync wrapped in thread to avoid asyncpg engine requirement)
             source_docs = await asyncio.to_thread(self.retriever.invoke, question)
             context = "\n\n".join([doc.page_content for doc in source_docs])
+            
+            # Inject History into Context
+            if history:
+                context = f"Previous Conversation History:\n{history}\n\nDocument Context:\n{context}"
+                
             unique_sources = list(set([doc.metadata.get('source', 'Unknown') for doc in source_docs]))
 
             # 4. STREAM LLM RESPONSE
@@ -151,6 +176,12 @@ class APISupportAgent:
                 yield "\n\n[Security Alert: Content flagged by output policy.]"
             
             await asyncio.to_thread(self.cache_store.add_texts, texts=[question], metadatas=[{"answer": full_response}])
+
+            # 7. Save Updated History
+            new_history = history + f"\nUser: {question}\nAgent: {full_response}\n"
+            if len(new_history) > 4000:
+                new_history = new_history[-4000:]
+            await asyncio.to_thread(self.db.update_chat_session, session_id, new_history)
 
         except Exception as e:
             yield f"\n\n[System Error: {str(e)}]"

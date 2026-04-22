@@ -13,7 +13,13 @@ except ImportError:
 
 class DatabaseManager:
     def __init__(self, db_type=None, cache_dir='local_cache'):
-        self.db_type = db_type or os.getenv("DB_TYPE", "sqlite")
+        if db_type is None:
+            if os.getenv("VECTOR_MODE", "local") == "production":
+                db_type = "postgres"
+            else:
+                db_type = os.getenv("DB_TYPE", "sqlite")
+                
+        self.db_type = db_type
         self.cache_dir = cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
         self.sqlite_path = os.path.join(self.cache_dir, "essa.db")
@@ -143,3 +149,34 @@ class DatabaseManager:
     @staticmethod
     def calculate_hash(content):
         return hashlib.sha256(content.encode('utf-8')).hexdigest()
+
+    def update_chat_session(self, session_id, history_text):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        timestamp = datetime.datetime.now().isoformat()
+        if self.db_type == "postgres":
+            cursor.execute("""
+                INSERT INTO chat_sessions (session_id, context_window, last_active)
+                VALUES (%s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (session_id) DO UPDATE 
+                SET context_window = EXCLUDED.context_window, 
+                    last_active = CURRENT_TIMESTAMP
+            """, (session_id, history_text))
+        else:
+            cursor.execute("""
+                INSERT OR REPLACE INTO chat_sessions (session_id, context_window, last_active)
+                VALUES (?, ?, ?)
+            """, (session_id, history_text, timestamp))
+        conn.commit()
+        conn.close()
+
+    def get_chat_session(self, session_id):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        if self.db_type == "postgres":
+            cursor.execute("SELECT context_window FROM chat_sessions WHERE session_id = %s", (session_id,))
+        else:
+            cursor.execute("SELECT context_window FROM chat_sessions WHERE session_id = ?", (session_id,))
+        res = cursor.fetchone()
+        conn.close()
+        return res[0] if res else ""

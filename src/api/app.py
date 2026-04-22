@@ -54,6 +54,7 @@ web_app.add_middleware(
 
 class QueryRequest(BaseModel):
     question: str
+    session_id: str = "default_session"
 
 # Global agent instance for warm-starting
 support_agent: Optional[any] = None
@@ -97,7 +98,7 @@ async def ask_agent(request: QueryRequest):
 
     try:
         # 🌟 FIXED: Awaiting the now-async ask method
-        answer = await agent.ask(request.question)
+        answer = await agent.ask(request.question, request.session_id)
 
         # Check for guardrail blocks in the response
         if "Security Alert" in answer or "[REDACTED]" in answer:
@@ -121,7 +122,7 @@ async def ask_agent_stream(request: QueryRequest):
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
     return StreamingResponse(
-        agent.ask_stream(request.question), 
+        agent.ask_stream(request.question, request.session_id), 
         media_type="text/event-stream"
     )
 

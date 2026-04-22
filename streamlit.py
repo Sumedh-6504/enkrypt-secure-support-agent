@@ -14,6 +14,10 @@ if page == "💬 Support Chat":
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    
+    if "session_id" not in st.session_state:
+        import uuid
+        st.session_state.session_id = str(uuid.uuid4())
 
     # Display chat history
     for message in st.session_state.messages:
@@ -29,7 +33,8 @@ if page == "💬 Support Chat":
         with st.chat_message("assistant"):
             try:
                 # Add stream=True to tell the requests library to stream the connection
-                response = requests.post(API_URL, json={"question": prompt}, stream=True)
+                payload = {"question": prompt, "session_id": st.session_state.session_id}
+                response = requests.post(API_URL, json=payload, stream=True)
                 if response.status_code == 200:
                     # We start reading without showing success yet
                     def generate_chunks():
