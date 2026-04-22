@@ -2,6 +2,7 @@ import os
 import pytest
 import uuid
 import copy
+import asyncio
 from unittest.mock import MagicMock, patch
 from dotenv import load_dotenv
 import sys
@@ -47,7 +48,7 @@ def create_dummy_docs():
 def agent():
     if not GROQ_API_KEY:
         pytest.fail("GROQ_API_KEY is missing!")
-    return APISupportAgent(doc_path=DUMMY_DOC_PATH, top_k=1, cache_dir="./test_cache_db")
+    return APISupportAgent(top_k=1, cache_dir="./test_cache_db")
 
 
 def test_baseline_rag_accuracy(agent):
@@ -56,7 +57,7 @@ def test_baseline_rag_accuracy(agent):
         # Mock Enkrypt AI responding that the input and output are both perfectly safe
         mock_detect.return_value = MagicMock(is_safe=True)
         
-        response = agent.ask("What is Enkrypt AI?")
+        response = asyncio.run(agent.ask("What is Enkrypt AI?"))
         assert "Security Alert" not in response
         assert len(response) > 5
 
