@@ -7,7 +7,7 @@
 [![LLM](https://img.shields.io/badge/LLM-Llama3_via_Groq-purple)](https://console.groq.com/)
 [![Backend](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 
-**🔗 Live Demo:** <a href="[INSERT_NEW_STREAMLIT_URL_HERE]" target="_blank">[INSERT_NEW_STREAMLIT_URL_HERE]</a>
+**🔗 Live Demo:** <a href="https://enkrypt-secure-support-agent.streamlit.app/" target="_blank">https://enkrypt-secure-support-agent.streamlit.app/</a>
 
 > **A Production-Grade, Secure-by-Design RAG Agent built with a persistent PGVector backend and real-time Guardrails.**
 
