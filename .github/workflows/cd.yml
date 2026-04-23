@@ -1,0 +1,35 @@
+name: Continuous Deployment (Modal)
+
+on:
+  push:
+    branches: ["master", "main"]
+  # Only deploy after quality checks and security tests pass
+  workflow_run:
+    workflows: ["Code Quality & Type Checking", "Enkrypt Security Tests"]
+    types: [completed]
+    branches: ["master", "main"]
+
+jobs:
+  deploy:
+    # Only run if the previous workflows succeeded (or if manually triggered by push)
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Modal
+        run: pip install modal
+
+      - name: Deploy to Modal
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: modal deploy src/api/app.py
