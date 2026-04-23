@@ -28,4 +28,4 @@ jobs:
         run: ruff check .
 
       - name: Run mypy (Type Checking)
-        run: mypy . --ignore-missing-imports
+        run: mypy src testing --ignore-missing-imports --explicit-package-bases
