@@ -14,8 +14,8 @@ if not os.getenv("GROQ_API_KEY"):
 #     print("Please set the ENKRYPT_POLICY_NAME environment variable")
 #     exit(1)
 
-from src.orchestration.agent import APISupportAgent
-import time
+from src.orchestration.agent import APISupportAgent  # noqa: E402
+import time  # noqa: E402
 
 agent = APISupportAgent(cache_dir='./local_cache')
 

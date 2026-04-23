@@ -7,7 +7,6 @@ load_dotenv() # Load environment variables from .env
 
 try:
     import psycopg2
-    from psycopg2.extras import RealDictCursor
 except ImportError:
     psycopg2 = None
 

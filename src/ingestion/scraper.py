@@ -2,7 +2,6 @@ import asyncio
 import httpx
 from bs4 import BeautifulSoup
 import markdownify
-import os
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -96,7 +95,7 @@ async def run_scraper(target_urls: list[str] = None):
                 if page["status"] == "success":
                     f.write(f"\n\n### SOURCE: {page['url']} ###\n\n")
                     f.write(page["content"])
-    except:
+    except Exception:
         pass
 
     print("✅ Scraper cycle complete.")
