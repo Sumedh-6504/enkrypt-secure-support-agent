@@ -36,7 +36,7 @@ async def scrape_docs_concurrently(urls: list[str]) -> list[dict]:
         results = await asyncio.gather(*tasks)
         return results
 
-async def run_scraper(target_urls: list[str] = None):
+async def run_scraper(target_urls: list[str] | None = None):
     db = DatabaseManager()
     vs_factory = VectorStoreFactory()
     vectorstore = vs_factory.get_vector_store()

@@ -2,7 +2,7 @@ import modal
 import os
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Header
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -63,7 +63,7 @@ class QueryRequest(BaseModel):
     session_id: str = "default_session"
 
 # Global agent instance for warm-starting
-support_agent: Optional[any] = None
+support_agent: Optional[Any] = None
 
 def get_agent():
     """Lazy initializer for the agent."""
