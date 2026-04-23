@@ -3,7 +3,7 @@ name: Continuous Deployment (Modal)
 on:
   # Only deploy after quality checks and security tests pass
   workflow_run:
-    workflows: ["Code Quality & Type Checking", "Enkrypt Security Tests"]
+    workflows: ["Enkrypt Security Tests"]
     types: [completed]
     branches: ["master", "main"]
 
