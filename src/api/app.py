@@ -6,6 +6,11 @@ from typing import Optional
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+def download_model():
+    """Bake the HuggingFace model weights into the Modal image to prevent 30s cold starts."""
+    from langchain_huggingface import HuggingFaceEmbeddings
+    HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
 # 1. Define Image & Add Source
 image = (
     modal.Image.debian_slim()
@@ -29,6 +34,7 @@ image = (
         "markdownify",
         "psycopg2-binary"
     )
+    .run_function(download_model)
     # Add the entire src directory so all modules are available in Modal
     .add_local_python_source("src")
 )
@@ -88,6 +94,31 @@ async def root():
         "message": "Enkrypt Secure Agent is Running 🛡️",
         "status": "online",
         "version": "1.0.0"
+    }
+
+@web_app.get("/health/db")
+async def health_db():
+    """Diagnostic endpoint to verify if Modal is successfully hitting Supabase Postgres."""
+    agent = get_agent()
+    status = "disconnected"
+    error = None
+    
+    try:
+        conn = agent.db._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1;")
+        result = cursor.fetchone()
+        conn.close()
+        if result and result[0] == 1:
+            status = "connected"
+    except Exception as e:
+        error = str(e)
+        
+    return {
+        "vector_mode": os.getenv("VECTOR_MODE", "not_set"),
+        "db_type": agent.db.db_type,
+        "database_status": status,
+        "error": error
     }
 
 @web_app.post("/ask")
