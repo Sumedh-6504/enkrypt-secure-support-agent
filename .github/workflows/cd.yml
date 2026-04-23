@@ -1,8 +1,6 @@
 name: Continuous Deployment (Modal)
 
 on:
-  push:
-    branches: ["master", "main"]
   # Only deploy after quality checks and security tests pass
   workflow_run:
     workflows: ["Code Quality & Type Checking", "Enkrypt Security Tests"]
@@ -11,27 +9,39 @@ on:
 
 jobs:
   deploy:
-    # Only run if the previous workflows succeeded (or if manually triggered by push)
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
+    # Only run if the previous workflows succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Check for backend changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'src/**'
+              - 'requirements.txt'
+
       - name: Set up Python 3.11
+        if: steps.filter.outputs.backend == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
       - name: Install Dependencies
+        if: steps.filter.outputs.backend == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install modal
 
       - name: Deploy to Modal
+        if: steps.filter.outputs.backend == 'true'
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
