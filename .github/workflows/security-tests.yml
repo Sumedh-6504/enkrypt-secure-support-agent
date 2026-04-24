@@ -42,3 +42,21 @@ jobs:
         ENKRYPT_POLICY_NAME: "Customer Support"
       run: |
         python -m pytest testing/test_agent.py -v
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: "pip"
+
+    - name: Install pip-audit
+      run: python -m pip install pip-audit
+
+    - name: Scan requirements.txt for Vulnerabilities
+      run: pip-audit -r requirements.txt
