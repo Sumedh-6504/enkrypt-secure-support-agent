@@ -1,14 +1,12 @@
 import os
 import pytest
-import psycopg2
 import sys
-from dotenv import load_dotenv
 
 # Ensure the src directory is in the path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(PROJECT_ROOT)
 
-from src.ingestion.database import DatabaseManager
+from src.ingestion.database import DatabaseManager  # noqa: E402
 
 @pytest.fixture
 def db():
@@ -16,12 +14,12 @@ def db():
     Connects to the simulated Postgres database.
     In CI, this points to localhost:5432.
     """
-    # Use environment variables provided by GitHub Actions
-    db_url = os.getenv("SUPABASE_DB_URL", "postgresql://postgres:password@localhost:5432/postgres")
-    manager = DatabaseManager(db_url)
+    # DatabaseManager reads POSTGRES_URL from the environment
+    os.environ["POSTGRES_URL"] = os.getenv("SUPABASE_DB_URL", "postgresql://postgres:password@localhost:5432/postgres")
     
-    # Initialize the tables in the empty simulator
-    manager.create_tables()
+    # Initialize the manager. It automatically calls _init_schema() to create tables!
+    manager = DatabaseManager(db_type="postgres")
+    
     return manager
 
 def test_database_connection(db):

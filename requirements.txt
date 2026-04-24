@@ -20,3 +20,6 @@ pytest
 tabulate
 langchain-huggingface
 sentence-transformers
+
+# Security Patches
+cryptography>=46.0.6
