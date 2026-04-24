@@ -17,6 +17,23 @@ on:
 jobs:
   red-team-tdd:
     runs-on: ubuntu-latest
+    
+    # --- SUPABASE SIMULATOR (Postgres + PGVector) ---
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        # Wait for postgres to be healthy before starting the job
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - name: Checkout Code
@@ -34,14 +51,17 @@ jobs:
         pip install -r requirements.txt
         pip install pytest
         
-    - name: Run Enkrypt Red Team & Guardrail Tests
+    - name: Run Enkrypt Red Team, Guardrail & DB Simulation Tests
       env:
-        # These are securely injected from GitHub Settings!
+        # --- Pointing to the Local Simulator ---
+        SUPABASE_DB_URL: postgresql://postgres:password@localhost:5432/postgres
+        
+        # --- Real API Keys for Integration ---
         GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         ENKRYPT_API_KEY: ${{ secrets.ENKRYPT_API_KEY }}
         ENKRYPT_POLICY_NAME: "Customer Support"
       run: |
-        python -m pytest testing/test_agent.py -v
+        python -m pytest testing/test_agent.py testing/test_db_integration.py -v
 
   dependency-audit:
     runs-on: ubuntu-latest
