@@ -13,8 +13,8 @@ psycopg2-binary
 enkryptai-sdk==1.0.28
 beautifulsoup4
 clerk-backend-api>=5.0.0
-httpx==0.27.2
-python-dateutil==2.8.2
+httpx
+python-dateutil
 python-dotenv
 pytest
 tabulate
