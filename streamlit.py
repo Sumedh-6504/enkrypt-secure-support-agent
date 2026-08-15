@@ -62,7 +62,7 @@ if page == "💬 Support Chat":
                     st.session_state.messages.append({"role": "assistant", "content": f"🚫 {error_msg}"})
                 else:
                     st.error(f"Error: {response.text}")
-            except Exception as e:
+            except requests.RequestException as e:
                 st.error(f"Connection failed: {e}")
 
 elif page == "🛡️ Admin Dashboard":
@@ -106,5 +106,5 @@ elif page == "🛡️ Admin Dashboard":
                     st.info("No attacks logged yet! Try sending a jailbreak prompt in the chat.")
             else:
                 st.error("Failed to load telemetry data from Modal.")
-        except Exception as e:
+        except requests.RequestException as e:
             st.error(f"API Error: {e}")

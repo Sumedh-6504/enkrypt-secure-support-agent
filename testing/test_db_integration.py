@@ -1,12 +1,14 @@
 import os
-import pytest
 import sys
+
+import pytest
 
 # Ensure the src directory is in the path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(PROJECT_ROOT)
 
-from src.ingestion.database import DatabaseManager  # noqa: E402
+from src.ingestion.database import DatabaseManager
+
 
 @pytest.fixture
 def db():

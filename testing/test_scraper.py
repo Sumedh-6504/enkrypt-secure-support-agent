@@ -1,4 +1,5 @@
 import pytest
+
 from src.ingestion.scraper import scrape_docs_concurrently
 
 # Tell pytest we are running async tests

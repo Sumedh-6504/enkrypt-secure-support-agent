@@ -1,4 +1,5 @@
 import os
+
 import psycopg2
 from dotenv import load_dotenv
 
@@ -23,8 +24,8 @@ if url:
         cur.execute("SELECT 1;")
         print("✅ Database is responsive.")
         conn.close()
-    except Exception as e:
-        print(f"\n❌ FAILED: {str(e)}")
+    except psycopg2.Error as e:
+        print(f"\n❌ FAILED: {e!s}")
         if "Tenant or user not found" in str(e):
             print("\nPOSSIBLE FIXES:")
             print("1. Ensure your username is formatted as: postgres.[YOUR-PROJECT-REF]")

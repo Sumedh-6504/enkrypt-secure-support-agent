@@ -1,5 +1,5 @@
-import sqlite3
 import os
+import sqlite3
 
 db_path = os.path.join('local_cache', 'essa.db')
 
@@ -28,5 +28,5 @@ else:
             print(f"Latest security event: '{q_text}...' -> Result: {sample[1]}")
             
         conn.close()
-    except Exception as e:
-        print(f"Error reading database: {str(e)}")
+    except sqlite3.Error as e:
+        print(f"Error reading database: {e!s}")
