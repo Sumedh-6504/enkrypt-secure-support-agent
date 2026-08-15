@@ -7,7 +7,7 @@ langchain-core
 langchain-text-splitters
 langchain-groq
 langchain-chroma
-chromadb
+chromadb>=1.6.0
 langchain-postgres
 psycopg2-binary
 enkryptai-sdk==1.0.28

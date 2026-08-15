@@ -55,7 +55,7 @@ def test_baseline_rag_accuracy(agent):
     """TEST 1: Ensure basic RAG functionality works."""
     with patch.object(agent.guardrails, 'detect') as mock_detect:
         # Mock Enkrypt AI responding that the input and output are both perfectly safe
-        mock_detect.return_value = MagicMock(is_safe=True)
+        mock_detect.return_value = MagicMock(is_safe=lambda: True)
         
         response = asyncio.run(agent.ask("What is Enkrypt AI?"))
         assert "Security Alert" not in response
