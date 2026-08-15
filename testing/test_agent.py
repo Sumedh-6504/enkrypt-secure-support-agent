@@ -3,7 +3,7 @@ import copy
 import os
 import sys
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from dotenv import load_dotenv
@@ -55,13 +55,17 @@ def agent():
 
 def test_baseline_rag_accuracy(agent):
     """TEST 1: Ensure basic RAG functionality works."""
-    with patch.object(agent.guardrails, 'detect') as mock_detect:
+    mock_chain = AsyncMock()
+    mock_chain.ainvoke.return_value = "Enkrypt AI is an AI security platform preventing prompt injections."
+
+    with patch.object(agent.guardrails, 'detect') as mock_detect, \
+         patch.object(agent, 'chain', new=mock_chain):
         # Mock Enkrypt AI responding that the input and output are both perfectly safe
         mock_detect.return_value = MagicMock(is_safe=lambda: True)
         
         response = asyncio.run(agent.ask("What is Enkrypt AI?"))
-        assert "Security Alert" not in response
-        assert len(response) > 5
+        assert "Security Alert" not in response["answer"]
+        assert len(response["answer"]) > 5
 
 
 def test_enkrypt_input_guardrail_jailbreak(agent):
