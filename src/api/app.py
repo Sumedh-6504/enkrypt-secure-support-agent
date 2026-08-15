@@ -128,21 +128,27 @@ async def ask_agent(request: QueryRequest):
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
     try:
-        # 🌟 FIXED: Awaiting the now-async ask method
-        answer = await agent.ask(request.question, request.session_id)
+        # result is now a structured dict
+        result = await agent.ask(request.question, request.session_id)
 
-        # Check for guardrail blocks in the response
-        if "Security Alert" in answer or "[REDACTED]" in answer:
-            raise HTTPException(status_code=403, detail=f"Request blocked by Enkrypt Guardrails: {answer}")
+        # Check for guardrail blocks in the status
+        if result.get("security_status") == "Blocked":
+            return {
+                "question": request.question,
+                "answer": result["answer"],
+                "citations": [],
+                "reasoning": result.get("reasoning", []),
+                "security_status": "Blocked"
+            }
 
         return {
             "question": request.question,
-            "answer": answer,
-            "security_status": "Passed Enkrypt Guardrails",
+            "answer": result["answer"],
+            "citations": result.get("citations", []),
+            "reasoning": result.get("reasoning", []),
+            "security_status": result.get("security_status", "Passed"),
             "context_used": "top_k=1"
         }
-    except HTTPException as he:
-        raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

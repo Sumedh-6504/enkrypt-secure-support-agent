@@ -21,7 +21,7 @@ class APISupportAgent:
         self.embeddings = self.vs_factory.get_embeddings()
 
         # 2. Setup LLM
-        self.llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1)
+        self.llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.1)
 
         # 3. Setup Semantic Cache
         self.cache_store = self.vs_factory.get_vector_store(
@@ -89,49 +89,109 @@ class APISupportAgent:
         }
 
     async def ask(self, question: str, session_id: str = "default_session"):
-        """Standard asynchronous ask method."""
+        """Standard asynchronous ask method returning structured data."""
+        reasoning_steps = []
+        start_time = asyncio.get_event_loop().time()
+        
         try:
-            # 0. Load Conversation History
-            history = await asyncio.to_thread(self.db.get_chat_session, session_id)
-
-            # 1. Input Guardrail
+            # Step 1: Security Scan
+            step_start = asyncio.get_event_loop().time()
             input_check = await asyncio.to_thread(self.guardrails.detect, question, config=self.guardrails_config)
+            duration = f"{asyncio.get_event_loop().time() - step_start:.2f}s"
+            
+            reasoning_steps.append({
+                "step": 1,
+                "title": "Security Guardrails",
+                "content": "Performing real-time prompt injection and policy violation check.",
+                "duration": duration
+            })
+
             if hasattr(input_check, 'is_safe') and not input_check.is_safe():
                 self.db.log_security_event(question, "BLOCKED", "PROMPT_INJECTION")
-                return "Security Alert: Request blocked by Enkrypt Guardrails."
+                return {
+                    "answer": "Security Alert: Request blocked by Enkrypt Guardrails.",
+                    "citations": [],
+                    "reasoning": reasoning_steps,
+                    "security_status": "Blocked"
+                }
             
             self.db.log_security_event(question, "SAFE", "None")
 
-            # 2. Context Retrieval (Sync wrapped in thread to avoid asyncpg engine requirement for PGVector)
+            # Step 2: Context Retrieval
+            step_start = asyncio.get_event_loop().time()
             source_docs = await asyncio.to_thread(self.retriever.invoke, question)
-            context = "\n\n".join([doc.page_content for doc in source_docs])
+            duration = f"{asyncio.get_event_loop().time() - step_start:.2f}s"
             
-            # Inject History into Context
+            reasoning_steps.append({
+                "step": 2,
+                "title": "Context Retrieval",
+                "content": f"Found {len(source_docs)} relevant documentation chunks in the vector store.",
+                "duration": duration
+            })
+
+            context = "\n\n".join([doc.page_content for doc in source_docs])
+            history = await asyncio.to_thread(self.db.get_chat_session, session_id)
             if history:
                 context = f"Previous Conversation History:\n{history}\n\nDocument Context:\n{context}"
-            unique_sources = list(set([doc.metadata.get('source', 'Unknown') for doc in source_docs]))
 
-            # 3. LLM Call
+            # Step 3: LLM Synthesis
+            step_start = asyncio.get_event_loop().time()
             response = await self.chain.ainvoke({"context": context, "question": question})
+            duration = f"{asyncio.get_event_loop().time() - step_start:.2f}s"
+            
+            reasoning_steps.append({
+                "step": 3,
+                "title": "AI Synthesis",
+                "content": "Generating technical response based on retrieved documentation.",
+                "duration": duration
+            })
 
-            # 4. Add Citations
-            if unique_sources:
-                response += "\n\n---\n**Sources:**\n" + "\n".join([f"- [{s}]({s})" for s in unique_sources])
+            # Formatting Citations for Frontend
+            citations = []
+            for i, doc in enumerate(source_docs):
+                citations.append({
+                    "id": f"doc{i+1}",
+                    "label": f"Doc {i+1}",
+                    "snippet": doc.page_content[:200] + "...",
+                    "source": doc.metadata.get('source', 'Internal Documentation'),
+                    "page": doc.metadata.get('page')
+                })
 
-            # 5. Output Guardrail
+            # Step 4: Output Verification
+            step_start = asyncio.get_event_loop().time()
             output_check = await asyncio.to_thread(self.guardrails.detect, response, config=self.guardrails_config)
-            if hasattr(output_check, 'is_safe') and not output_check.is_safe():
-                return response + "\n\n[Security Alert: Content flagged by output policy.]"
+            duration = f"{asyncio.get_event_loop().time() - step_start:.2f}s"
+            
+            reasoning_steps.append({
+                "step": 4,
+                "title": "Output Verification",
+                "content": "Validating AI response against data leakage and toxicity policies.",
+                "duration": duration
+            })
 
-            # 6. Save Updated History
-            new_history = history + f"\nUser: {question}\nAgent: {response}\n"
+            if hasattr(output_check, 'is_safe') and not output_check.is_safe():
+                response += "\n\n[Security Alert: Content flagged by output policy.]"
+
+            # Save History
+            new_history = (history or "") + f"\nUser: {question}\nAgent: {response}\n"
             if len(new_history) > 4000:
                 new_history = new_history[-4000:]
             await asyncio.to_thread(self.db.update_chat_session, session_id, new_history)
 
-            return response
+            return {
+                "answer": response,
+                "citations": citations,
+                "reasoning": reasoning_steps,
+                "security_status": "Passed"
+            }
+
         except Exception as e:
-            return f"[System Error: {str(e)}]"
+            return {
+                "answer": f"[System Error: {str(e)}]",
+                "citations": [],
+                "reasoning": reasoning_steps,
+                "security_status": "Error"
+            }
 
     async def ask_stream(self, question: str, session_id: str = "default_session") -> AsyncGenerator[str, None]:
         try:

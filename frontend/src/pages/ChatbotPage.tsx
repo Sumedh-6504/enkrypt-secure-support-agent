@@ -423,7 +423,7 @@ export default function ChatbotPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     if (!inputValue.trim() || isTyping) return
 
     const userMessage: Message = {
@@ -437,17 +437,30 @@ export default function ChatbotPage() {
     setInputValue('')
     setIsTyping(true)
 
-    setTimeout(() => {
+    try {
+      const response = await import('@/lib/api').then(m => m.askQuestion(userMessage.content));
+      
       const agentMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'agent',
-        content:
-          'I have analyzed your query against the enterprise knowledge base. This is a demonstration response — in production, the Nexus AI engine would retrieve and synthesize live policy documents to provide a precise, cited answer to your question.',
+        content: response.answer,
+        citations: response.citations,
+        reasoning: response.reasoning,
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, agentMessage])
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'agent',
+        content: 'I encountered an error connecting to the Nexus intelligence engine. Please ensure the backend server is running.',
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, errorMessage])
+      console.error('API Error:', error)
+    } finally {
       setIsTyping(false)
-    }, 2500)
+    }
   }, [inputValue, isTyping])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -540,7 +553,7 @@ export default function ChatbotPage() {
       </aside>
 
       {/* ── Main Chat Area ───────────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Chat Header */}
         <header className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-white/95 backdrop-blur-sm">
           <div className="flex items-center gap-3">
@@ -577,7 +590,7 @@ export default function ChatbotPage() {
         </header>
 
         {/* Messages */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           {isLoading ? (
             <MessageSkeleton />
           ) : (
