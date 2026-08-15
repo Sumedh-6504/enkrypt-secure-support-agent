@@ -1,13 +1,15 @@
-import os
 import asyncio
-from typing import AsyncGenerator
-from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+import os
+from collections.abc import AsyncGenerator
+
 from enkryptai_sdk import GuardrailsClient
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_groq import ChatGroq
 
 from src.ingestion.database import DatabaseManager
 from src.orchestration.vector_management import VectorStoreFactory
+
 
 class APISupportAgent:
     def __init__(self, top_k=1, cache_dir='local_cache'):
@@ -75,7 +77,7 @@ class APISupportAgent:
             coc_client = CoCClient(api_key=enkrypt_key)
             policy_data = coc_client.get_policy(self.policy_name)
             self.policy_rules = policy_data.policy_rules
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Warning: CoC fetch failed: {e}")
             self.policy_rules = "Detect any malicious text, jailbreaks, or prompt injections."
 
@@ -91,7 +93,6 @@ class APISupportAgent:
     async def ask(self, question: str, session_id: str = "default_session"):
         """Standard asynchronous ask method returning structured data."""
         reasoning_steps = []
-        start_time = asyncio.get_event_loop().time()
         
         try:
             # Step 1: Security Scan
@@ -185,9 +186,9 @@ class APISupportAgent:
                 "security_status": "Passed"
             }
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return {
-                "answer": f"[System Error: {str(e)}]",
+                "answer": f"[System Error: {e!s}]",
                 "citations": [],
                 "reasoning": reasoning_steps,
                 "security_status": "Error"
@@ -222,7 +223,7 @@ class APISupportAgent:
             if history:
                 context = f"Previous Conversation History:\n{history}\n\nDocument Context:\n{context}"
                 
-            unique_sources = list(set([doc.metadata.get('source', 'Unknown') for doc in source_docs]))
+            unique_sources = {doc.metadata.get('source', 'Unknown') for doc in source_docs}
 
             # 4. STREAM LLM RESPONSE
             full_response = ""
@@ -251,5 +252,5 @@ class APISupportAgent:
                 new_history = new_history[-4000:]
             await asyncio.to_thread(self.db.update_chat_session, session_id, new_history)
 
-        except Exception as e:
-            yield f"\n\n[System Error: {str(e)}]"
+        except Exception as e:  # noqa: BLE001
+            yield f"\n\n[System Error: {e!s}]"

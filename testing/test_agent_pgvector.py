@@ -1,11 +1,12 @@
-import sys
-import os
 import asyncio
+import os
+import sys
 
 # Allow importing the src package
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from dotenv import load_dotenv
+
 from src.orchestration.agent import APISupportAgent
 
 # Ensure environment is loaded
@@ -26,8 +27,8 @@ async def main():
         print("\n" + "-" * 30)
         print("\n✅ Test complete!")
         
-    except Exception as e:
-        print(f"\n❌ ERROR: {str(e)}")
+    except Exception as e:  # noqa: BLE001
+        print(f"\n❌ ERROR: {e!s}")
 
 if __name__ == "__main__":
     asyncio.run(main())

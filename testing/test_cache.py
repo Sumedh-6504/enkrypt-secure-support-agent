@@ -1,21 +1,25 @@
 import os
+import sys
+
 from dotenv import load_dotenv
+
 load_dotenv()
 
 if not os.getenv("ENKRYPT_API_KEY"):
     print("Please set the ENKRYPT_API_KEY environment variable")
-    exit(1)
+    sys.exit(1)
 
 if not os.getenv("GROQ_API_KEY"):
     print("Please set the GROQ_API_KEY environment variable")
-    exit(1)
+    sys.exit(1)
 
 # if not os.getenv("ENKRYPT_POLICY_NAME"):
 #     print("Please set the ENKRYPT_POLICY_NAME environment variable")
-#     exit(1)
+#     sys.exit(1)
+
+import time  # noqa: E402
 
 from src.orchestration.agent import APISupportAgent  # noqa: E402
-import time  # noqa: E402
 
 agent = APISupportAgent(cache_dir='./local_cache')
 

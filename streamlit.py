@@ -1,6 +1,7 @@
-import streamlit as st
-import requests
 import pandas as pd
+import requests
+
+import streamlit as st
 
 API_URL = "https://jb23cs163--enkrypt-secure-support-agent-fastapi-app.modal.run/stream"
 TELEMETRY_URL = "https://jb23cs163--enkrypt-secure-support-agent-fastapi-app.modal.run/telemetry"

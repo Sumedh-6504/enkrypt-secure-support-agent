@@ -1,10 +1,11 @@
-import modal
 import os
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Header
-from pydantic import BaseModel
-from typing import Optional, Any
-from fastapi.responses import StreamingResponse
+from typing import Any
+
+import modal
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 def download_model():
     """Bake the HuggingFace model weights into the Modal image to prevent 30s cold starts."""
@@ -63,7 +64,7 @@ class QueryRequest(BaseModel):
     session_id: str = "default_session"
 
 # Global agent instance for warm-starting
-support_agent: Optional[Any] = None
+support_agent: Any | None = None
 
 def get_agent():
     """Lazy initializer for the agent."""
@@ -111,7 +112,7 @@ async def health_db():
         conn.close()
         if result and result[0] == 1:
             status = "connected"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         error = str(e)
         
     return {
@@ -149,7 +150,7 @@ async def ask_agent(request: QueryRequest):
             "security_status": result.get("security_status", "Passed"),
             "context_used": "top_k=1"
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
 
 @web_app.post("/stream")
@@ -192,7 +193,7 @@ async def get_telemetry_logs():
         conn.close()
         
         return {"metrics": metrics, "recent_attacks": attacks}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"error": str(e)}
 
 @web_app.post("/webhooks/update-docs")

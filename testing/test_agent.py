@@ -1,18 +1,19 @@
-import os
-import pytest
-import uuid
-import copy
 import asyncio
-from unittest.mock import MagicMock, patch
-from dotenv import load_dotenv
+import copy
+import os
 import sys
+import uuid
+from unittest.mock import MagicMock, patch
+
+import pytest
+from dotenv import load_dotenv
 
 # Find the absolute path to the project root and add it to sys.path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(PROJECT_ROOT)
 
-from enkryptai_sdk import GuardrailsClient, RedTeamClient  # noqa: E402
-from src.orchestration.agent import APISupportAgent  # noqa: E402
+from enkryptai_sdk import GuardrailsClient, RedTeamClient
+from src.orchestration.agent import APISupportAgent
 
 load_dotenv()
 

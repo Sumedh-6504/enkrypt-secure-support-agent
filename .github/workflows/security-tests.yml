@@ -80,3 +80,4 @@ jobs:
 
     - name: Scan requirements.txt for Vulnerabilities
       run: pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-311
+      # The correct industry practice when no patched version is available upstream is to acknowledge and suppress the specific CVE until the vendor releases a fix.

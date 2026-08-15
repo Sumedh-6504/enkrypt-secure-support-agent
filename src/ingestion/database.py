@@ -1,8 +1,10 @@
-import os
-import sqlite3
 import datetime
 import hashlib
+import os
+import sqlite3
+
 from dotenv import load_dotenv
+
 load_dotenv() # Load environment variables from .env
 
 try:
@@ -99,7 +101,7 @@ class DatabaseManager:
     def log_security_event(self, question, status, policy="None"):
         conn = self._get_connection()
         cursor = conn.cursor()
-        timestamp = datetime.datetime.now().isoformat()
+        timestamp = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
         if self.db_type == "postgres":
             cursor.execute(
                 "INSERT INTO security_logs (question, status, policy_violation) VALUES (%s, %s, %s)",
@@ -127,7 +129,7 @@ class DatabaseManager:
     def update_registry(self, filename, content_hash, chunk_count):
         conn = self._get_connection()
         cursor = conn.cursor()
-        timestamp = datetime.datetime.now().isoformat()
+        timestamp = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
         if self.db_type == "postgres":
             cursor.execute("""
                 INSERT INTO knowledge_base_registry (filename, content_hash, chunk_count, last_embedded_at)
@@ -152,7 +154,7 @@ class DatabaseManager:
     def update_chat_session(self, session_id, history_text):
         conn = self._get_connection()
         cursor = conn.cursor()
-        timestamp = datetime.datetime.now().isoformat()
+        timestamp = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
         if self.db_type == "postgres":
             cursor.execute("""
                 INSERT INTO chat_sessions (session_id, context_window, last_active)
